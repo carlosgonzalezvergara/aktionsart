@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Aplicación Streamlit para análisis de Aktionsart y Estructuras Lógicas
+Aplicación creada para la asistencioa en la detección
+de Aktionsart y en la formalización de Estructuras Lógicas
 Basada en la Gramática de Papel y Referencia (RRG)
+
+Carlos González Vergara (cgonzalv@uc.cl), 2025
 """
 
 import streamlit as st
