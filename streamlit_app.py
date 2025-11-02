@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Aplicación creada para la asistencioa en la detección
+Aplicación creada para la asistencia en la detección
 de Aktionsart y en la formalización de Estructuras Lógicas
 Basada en la Gramática de Papel y Referencia (RRG)
 
@@ -86,19 +86,23 @@ def pagina_inicio():
         unsafe_allow_html=True
     )
     
-    # Información sobre RRG
-    with st.expander("ℹ️ ¿Qué es la Gramática de Papel y Referencia (RRG)?"):
-        st.write("""
-        La **Role and Reference Grammar (RRG)** es un modelo de gramática funcional 
-        que analiza la estructura de las lenguas desde una perspectiva semántico-sintáctica.
-        
-        Esta herramienta te ayuda a:
-        - **Identificar el aktionsart** (aspecto léxico) de predicados verbales
-        - **Generar estructuras lógicas** formales de cláusulas en español
-        - **Analizar rasgos semánticos** como causatividad, telicidad, dinamicidad, etc.
-        """)
-    
-    st.markdown("---")
+    st.markdown("""
+    <div class="info-box">
+    <p>
+    Bienvenido a este asistente para la detección de <em>aktionsart</em> y la formalización de estructuras
+    lógicas básicas en el marco de la <strong>Gramática de Papel y Referencia (RRG)</strong>.
+    </p>
+    <p>
+    Esta aplicación puede ayudarte a:
+    </p>
+    <ul>
+        <li>Identificar el <em>aktionsart</em> de un predicado</li>
+        <li>Establecer los rasgos semánticos que definen esta clase aspectual</li>
+        <li>Generar estructuras lógicas de cláusulas basadas en esos predicados</li>
+        <li>Añadir operadores a las estructuras lógicas formalizadas</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Opciones principales
     st.markdown("### 📋 ¿Qué deseas hacer?")
@@ -127,26 +131,11 @@ def pagina_inicio():
     
     # Información adicional
     st.markdown("---")
-    with st.expander("📚 Sobre esta herramienta"):
-        st.write("""
-        **Desarrollada para el análisis lingüístico del español**
-        
-        Esta aplicación implementa pruebas diagnósticas basadas en:
-        - Vendler (1967) - Clasificación aspectual de verbos
-        - Van Valin & LaPolla (1997) - Sintaxis RRG
-        - Van Valin (2005) - Explorando la sintaxis RRG
-        
-        **Tipos de aktionsart identificados:**
-        - Estados y estados causativos
-        - Logros y logros causativos
-        - Semelfactivos
-        - Realizaciones (activas y no activas)
-        - Actividades
-        - Procesos
-        
-        **Rasgos analizados:**
-        - [±causativo], [±estativo], [±puntual], [±télico], [±dinámico]
-        """)
+    st.markdown("""
+    <div style="text-align:center; color:#555; margin-top:1rem;">
+        <p><strong>Creado por Carlos González Vergara</strong> (<a href="mailto:cgonzalv@uc.cl">cgonzalv@uc.cl</a>), 2025</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def main():
