@@ -1,193 +1,155 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Estructuras Lógicas adaptado para Streamlit
-Genera representaciones formales RRG de cláusulas en español
+Wrapper de Streamlit para ls.py original
+MANTIENE 100% LA LÓGICA ORIGINAL SIN MODIFICACIONES
 """
 
 import streamlit as st
-from typing import Optional, Dict, List
-import time
+import sys
+import os
+from typing import Optional, Any, Callable
+from io import StringIO
+import contextlib
+
+# ==================== MONKEY PATCHING PARA CAPTURAR I/O ====================
+
+class NecesitaInputException(Exception):
+    """Excepción especial cuando se necesita input del usuario"""
+    def __init__(self, prompt, tipo, key):
+        self.prompt = prompt
+        self.tipo = tipo
+        self.key = key
+        super().__init__(f"Necesita input: {key}")
+
+class StreamlitInputCapture:
+    """Captura las llamadas a peticion() e input_si_no() del código original"""
+    
+    def __init__(self):
+        self.contador_preguntas = 0
+        self.respuestas = {}
+        
+    def peticion(self, prompt: str) -> str:
+        """Reemplazo de peticion() que usa Streamlit"""
+        # Generar key único basado en el prompt y el contador
+        key = f"p_{self.contador_preguntas}_{hash(prompt) % 10000}"
+        self.contador_preguntas += 1
+        
+        # Verificar si ya tenemos respuesta guardada
+        if key in st.session_state.get('ls_respuestas', {}):
+            return st.session_state.ls_respuestas[key]
+        
+        # Si no tenemos respuesta, lanzar excepción para pausar ejecución
+        raise NecesitaInputException(prompt, 'texto', key)
+    
+    def input_si_no(self, prompt: str) -> bool:
+        """Reemplazo de input_si_no() que usa Streamlit"""
+        key = f"p_{self.contador_preguntas}_{hash(prompt) % 10000}"
+        self.contador_preguntas += 1
+        
+        # Verificar si ya tenemos respuesta guardada
+        if key in st.session_state.get('ls_respuestas', {}):
+            respuesta = st.session_state.ls_respuestas[key]
+            # Normalizar respuesta
+            if isinstance(respuesta, str):
+                return respuesta.lower() in ['sí', 'si', 's', 'yes', 'true']
+            return bool(respuesta)
+        
+        # Si no tenemos respuesta, lanzar excepción para pausar ejecución
+        raise NecesitaInputException(prompt, 'si_no', key)
 
 
-# Diccionario de aktionsart opciones
-AKTIONSART_OPCIONES = {
-    "estado": "Estado",
-    "estado causativo": "Estado Causativo",
-    "logro": "Logro",
-    "logro causativo": "Logro Causativo",
-    "realización": "Realización",
-    "realización causativa": "Realización Causativa",
-    "semelfactivo": "Semelfactivo",
-    "semelfactivo causativo": "Semelfactivo Causativo",
-    "proceso": "Proceso",
-    "proceso causativo": "Proceso Causativo",
-    "actividad": "Actividad",
-    "actividad causativa": "Actividad Causativa",
-    "realización activa": "Realización Activa",
-    "realización activa causativa": "Realización Activa Causativa"
-}
+# ==================== SISTEMA DE EJECUCIÓN INCREMENTAL ====================
 
-# Modificadores de aktionsart
-MODIFICADORES_AKT = {
-    "logro": "INGR",
-    "realización": "BECOME",
-    "proceso": "PROC",
-    "semelfactivo": "SEML",
-    "logro causativo": "INGR",
-    "realización causativa": "BECOME",
-    "proceso causativo": "PROC",
-    "semelfactivo causativo": "SEML"
-}
+def ejecutar_ls_original():
+    """Ejecuta el código original de ls.py con interceptación de I/O"""
+    
+    # Inicializar respuestas si no existen
+    if 'ls_respuestas' not in st.session_state:
+        st.session_state.ls_respuestas = {}
+    
+    # Preparar el capture
+    if 'ls_capture' not in st.session_state:
+        st.session_state.ls_capture = StreamlitInputCapture()
+    
+    capture = st.session_state.ls_capture
+    
+    # Importar y monkey-patch el módulo original
+    sys.path.insert(0, '/mnt/user-data/uploads')
+    
+    # Capturar stdout para obtener el resultado final
+    output_buffer = StringIO()
+    
+    try:
+        import ls
+        
+        # Reemplazar las funciones de entrada
+        ls.peticion = capture.peticion
+        ls.input_si_no = capture.input_si_no
+        
+        # Preparar argumentos iniciales desde session_state
+        if hasattr(st.session_state, 'ls_akt_inicial'):
+            sys.argv = ['ls.py', 
+                       st.session_state.ls_akt_inicial, 
+                       st.session_state.ls_oracion_inicial,
+                       'dinamico' if st.session_state.get('ls_dinamico_inicial', False) else 'no_dinamico']
+        
+        # Ejecutar el código original capturando stdout
+        with contextlib.redirect_stdout(output_buffer):
+            ls.main()
+        
+        # Si llegamos aquí, la ejecución terminó
+        st.session_state.ls_output = output_buffer.getvalue()
+        return True, None
+            
+    except NecesitaInputException as e:
+        # El código necesita input - retornar la pregunta
+        return False, e
+            
+    except Exception as e:
+        st.error(f"Error durante la ejecución: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+        return False, None
 
-# Operadores de la capa de cláusula
-OPERADORES = [
-    {"codigo": "IF", "descripcion": "Fuerza ilocutiva", "ejemplos": "DECL, INT, IMP"},
-    {"codigo": "TNS", "descripcion": "Tiempo", "ejemplos": "PAST, PRES, FUT"},
-    {"codigo": "ASP", "descripcion": "Aspecto", "ejemplos": "PFV, IMPFV, PROG"},
-    {"codigo": "MOD", "descripcion": "Modalidad", "ejemplos": "OBLIG, PERMIS, ABIL"},
-    {"codigo": "NEG", "descripcion": "Negación", "ejemplos": "NEG"},
-    {"codigo": "EVID", "descripcion": "Evidencialidad", "ejemplos": "VIS, INF, HEARSAY"},
-]
 
+# ==================== INTERFAZ DE STREAMLIT ====================
 
 def inicializar_estado_ls():
-    """Inicializa el estado para el generador de estructuras lógicas"""
-    if 'ls_paso' not in st.session_state:
-        st.session_state.ls_paso = 'inicio'
-    if 'ls_aktionsart' not in st.session_state:
-        st.session_state.ls_aktionsart = None
-    if 'ls_oracion' not in st.session_state:
-        st.session_state.ls_oracion = ""
-    if 'ls_es_dinamico' not in st.session_state:
-        st.session_state.ls_es_dinamico = False
-    if 'ls_argumentos' not in st.session_state:
-        st.session_state.ls_argumentos = {'x': '', 'y': '', 'z': ''}
-    if 'ls_predicado' not in st.session_state:
-        st.session_state.ls_predicado = ""
-    if 'ls_estructura' not in st.session_state:
-        st.session_state.ls_estructura = ""
-    if 'ls_operadores_seleccionados' not in st.session_state:
-        st.session_state.ls_operadores_seleccionados = []
-
-
-def generar_estructura_logica_basica(aktionsart: str, x: str, y: str, z: str, pred: str, es_dinamico: bool) -> str:
-    """Genera la estructura lógica básica según el aktionsart"""
+    """Inicializa el estado del wrapper"""
+    defaults = {
+        'ls_paso': 'inicio',
+        'ls_capture': None,
+        'ls_akt_inicial': None,
+        'ls_oracion_inicial': '',
+        'ls_dinamico_inicial': False,
+        'ls_output': '',
+        'ls_respuestas': {}
+    }
     
-    operador = MODIFICADORES_AKT.get(aktionsart, "")
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
     
-    # ESTADOS
-    if aktionsart == "estado":
-        if y == "Ø":
-            return f"{pred}' ({x})"
-        else:
-            return f"{pred}' ({x}, {y})"
-    
-    # ESTADOS CAUSATIVOS
-    elif aktionsart == "estado causativo":
-        return f"[do' ({x}, Ø)] CAUSE [{pred}' ({y})]"
-    
-    # LOGROS
-    elif aktionsart == "logro":
-        if y == "Ø":
-            return f"{operador} {pred}' ({x})"
-        else:
-            return f"{operador} {pred}' ({x}, {y})"
-    
-    # LOGROS CAUSATIVOS
-    elif aktionsart == "logro causativo":
-        return f"[do' ({x}, Ø)] CAUSE [{operador} {pred}' ({y})]"
-    
-    # SEMELFACTIVOS
-    elif aktionsart == "semelfactivo":
-        return f"{operador} do' ({x}, [{pred}' ({x})])"
-    
-    # SEMELFACTIVOS CAUSATIVOS
-    elif aktionsart == "semelfactivo causativo":
-        return f"[do' ({x}, Ø)] CAUSE [{operador} do' ({y}, [{pred}' ({y})])]"
-    
-    # REALIZACIONES
-    elif aktionsart == "realización":
-        if y == "Ø":
-            return f"{operador} {pred}' ({x})"
-        else:
-            return f"{operador} {pred}' ({x}, {y})"
-    
-    # REALIZACIONES CAUSATIVAS
-    elif aktionsart == "realización causativa":
-        return f"[do' ({x}, Ø)] CAUSE [{operador} {pred}' ({y})]"
-    
-    # REALIZACIONES ACTIVAS
-    elif aktionsart == "realización activa":
-        if y == "Ø":
-            return f"do' ({x}, [{pred}' ({x})]) & {operador} {pred}' ({x})"
-        else:
-            return f"do' ({x}, [{pred}' ({x}, ({y}))]) & {operador} {pred}' ({y})"
-    
-    # REALIZACIONES ACTIVAS CAUSATIVAS
-    elif aktionsart == "realización activa causativa":
-        return f"[do' ({x}, Ø)] CAUSE [do' ({y}, [{pred}' ({y})]) & {operador} {pred}' ({y})]"
-    
-    # ACTIVIDADES
-    elif aktionsart == "actividad":
-        if y == "Ø":
-            return f"do' ({x}, [{pred}' ({x})])"
-        else:
-            return f"do' ({x}, [{pred}' ({x}, {y})])"
-    
-    # ACTIVIDADES CAUSATIVAS
-    elif aktionsart == "actividad causativa":
-        return f"[do' ({x}, Ø)] CAUSE [do' ({y}, [{pred}' ({y})])]"
-    
-    # PROCESOS
-    elif aktionsart == "proceso":
-        if y == "Ø":
-            return f"{operador} {pred}' ({x})"
-        else:
-            return f"{operador} {pred}' ({x}, {y})"
-    
-    # PROCESOS CAUSATIVOS
-    elif aktionsart == "proceso causativo":
-        return f"[do' ({x}, Ø)] CAUSE [{operador} {pred}' ({y})]"
-    
-    else:
-        return f"predicate' ({x}, {y})"
-
-
-def aplicar_DO(oracion: str, x: str, estructura: str, es_dinamico: bool, aktionsart: str) -> str:
-    """Aplica la capa de intencionalidad DO si corresponde"""
-    
-    # No aplicar DO a estados
-    if "estado" in aktionsart:
-        return estructura
-    
-    # Preguntar si la acción fue intencional
-    st.write("### 🎯 Intencionalidad")
-    intencional = st.radio(
-        f"¿«{x[0].upper() + x[1:]}» actuó de manera **intencional** en «{oracion}»?",
-        options=["Sí", "No"],
-        key="radio_intencional",
-        help="Solo acciones realizadas voluntariamente requieren el operador DO"
-    )
-    
-    if intencional == "Sí":
-        return f"DO ({estructura})"
-    else:
-        return estructura
+    # Inicializar capture si no existe
+    if st.session_state.ls_capture is None:
+        st.session_state.ls_capture = StreamlitInputCapture()
 
 
 def paso_inicio_ls():
-    """Paso inicial del generador de estructuras lógicas"""
+    """Paso inicial - configuración antes de ejecutar ls.py"""
     st.markdown("## 📐 Generador de Estructuras Lógicas")
-    
-    st.write("""
-    Este generador te ayudará a formalizar la estructura lógica de una cláusula 
-    en la notación de la **Gramática de Papel y Referencia (RRG)**.
-    """)
+    st.markdown("### Wrapper del código original ls.py")
     
     st.info("""
+    Esta versión ejecuta tu código original **sin modificaciones**.
+    
+    El programa hará preguntas interactivas una por una, 
+    exactamente como en la versión de terminal.
+    """)
+    
+    st.warning("""
     ⚠️ **Advertencia:** Este programa maneja cláusulas simples con su estructura argumental 
-    típica, y puede dar resultados inexactos en construcciones que las alteran 
-    (pasivas, antipassivas, etc.).
+    típica, y puede dar resultados inexactos en construcciones que las alteran.
     """)
     
     # Verificar si viene del análisis de aktionsart
@@ -196,6 +158,8 @@ def paso_inicio_ls():
         ✅ **Aktionsart ya identificado:** {st.session_state.aktionsart_resultado.upper()}
         
         **Cláusula:** {st.session_state.oracion_analizada}
+        
+        **Dinámico:** {'Sí' if st.session_state.get('es_dinamico', False) else 'No'}
         """)
         
         usar_previo = st.radio(
@@ -205,230 +169,207 @@ def paso_inicio_ls():
         )
         
         if usar_previo == "Sí, usar estos datos":
-            st.session_state.ls_aktionsart = st.session_state.aktionsart_resultado
-            st.session_state.ls_oracion = st.session_state.oracion_analizada
-            st.session_state.ls_es_dinamico = st.session_state.get('es_dinamico', False)
-            st.session_state.ls_paso = 'argumentos'
-            if st.button("▶️ Continuar con estos datos", type="primary"):
+            st.session_state.ls_akt_inicial = st.session_state.aktionsart_resultado
+            st.session_state.ls_oracion_inicial = st.session_state.oracion_analizada
+            st.session_state.ls_dinamico_inicial = st.session_state.get('es_dinamico', False)
+            
+            if st.button("▶️ Iniciar generación", type="primary"):
+                st.session_state.ls_paso = 'ejecutando'
+                st.session_state.ls_capture = StreamlitInputCapture()
                 st.rerun()
             return
     
-    # Selección manual
-    st.markdown("### 📝 Ingresa los datos de tu cláusula")
+    # Configuración manual
+    st.markdown("### 📝 Configuración inicial")
     
-    with st.form("form_inicio_ls"):
-        aktionsart = st.selectbox(
-            "Selecciona el aktionsart del predicado:",
-            options=list(AKTIONSART_OPCIONES.keys()),
-            format_func=lambda x: AKTIONSART_OPCIONES[x]
+    st.write("""
+    El programa te hará preguntas adicionales durante la ejecución,
+    pero primero necesita estos datos básicos:
+    """)
+    
+    with st.form("form_inicio_wrapper"):
+        # Aktionsart
+        aktionsart_dict = {
+            1: "estado", 2: "estado causativo", 3: "logro", 4: "logro causativo",
+            5: "realización", 6: "realización causativa", 7: "semelfactivo",
+            8: "semelfactivo causativo", 9: "proceso", 10: "proceso causativo",
+            11: "actividad", 12: "actividad causativa", 13: "realización activa",
+            14: "realización activa causativa"
+        }
+        
+        akt_num = st.selectbox(
+            "Selecciona el aktionsart:",
+            options=list(aktionsart_dict.keys()),
+            format_func=lambda x: f"{x}. {aktionsart_dict[x]}"
         )
         
         oracion = st.text_input(
-            "Escribe la cláusula completa:",
+            "Cláusula a analizar:",
             placeholder="Ejemplo: Juan rompió el jarrón"
         )
         
-        # Solo preguntar dinamicidad si no es un estado
-        es_dinamico = False
-        if "estado" not in aktionsart:
+        # Verificar dinamicidad
+        akt_seleccionado = aktionsart_dict[akt_num]
+        if akt_seleccionado in ["actividad", "actividad causativa", "realización activa", "realización activa causativa"]:
+            es_dinamico = True
+            st.info("✓ Este aktionsart es dinámico por definición")
+        elif akt_seleccionado in ["estado", "estado causativo", "realización causativa", "proceso causativo"]:
+            es_dinamico = False
+            st.info("✓ Este aktionsart no es dinámico por definición")
+        else:
             es_dinamico = st.checkbox(
-                "¿El predicado es dinámico? (requiere energía/esfuerzo del agente)",
-                help="Ejemplos dinámicos: correr, empujar. Ejemplos no dinámicos: caer, derretirse"
+                "¿El predicado es dinámico?",
+                help="Compatible con «enérgicamente», «con fuerza», «con ganas»"
             )
         
-        continuar = st.form_submit_button("▶️ Continuar", type="primary")
+        iniciar = st.form_submit_button("▶️ Iniciar generación", type="primary")
     
-    if continuar and oracion.strip():
-        st.session_state.ls_aktionsart = aktionsart
-        st.session_state.ls_oracion = oracion.strip()
-        st.session_state.ls_es_dinamico = es_dinamico
-        st.session_state.ls_paso = 'argumentos'
+    if iniciar and oracion.strip():
+        st.session_state.ls_akt_inicial = akt_seleccionado
+        st.session_state.ls_oracion_inicial = oracion.strip()
+        st.session_state.ls_dinamico_inicial = es_dinamico
+        st.session_state.ls_paso = 'ejecutando'
+        st.session_state.ls_capture = StreamlitInputCapture()
         st.rerun()
 
 
-def paso_argumentos():
-    """Solicitar los argumentos de la cláusula"""
-    st.markdown("## 📋 Argumentos de la Cláusula")
+def paso_ejecutando():
+    """Ejecuta el código original y maneja las preguntas interactivas"""
+    st.markdown("## 🔄 Generando Estructura Lógica")
     
-    st.write(f"Estamos analizando: **«{st.session_state.ls_oracion}»**")
+    # Mostrar configuración inicial
+    with st.expander("📋 Configuración inicial", expanded=False):
+        st.write(f"**Aktionsart:** {st.session_state.ls_akt_inicial}")
+        st.write(f"**Cláusula:** {st.session_state.ls_oracion_inicial}")
+        st.write(f"**Dinámico:** {'Sí' if st.session_state.ls_dinamico_inicial else 'No'}")
     
-    st.info("""
-    **Instrucciones:**
-    - Identifica los argumentos principales del verbo
-    - Usa **Ø** (letra O con barra) para argumentos vacíos o no expresados
-    - Usa nombres genéricos o las palabras exactas de la cláusula
-    """)
+    # Mostrar preguntas respondidas
+    num_respuestas = len(st.session_state.get('ls_respuestas', {}))
+    if num_respuestas > 0:
+        with st.expander(f"✅ Preguntas respondidas ({num_respuestas})", expanded=False):
+            for key, valor in st.session_state.ls_respuestas.items():
+                st.text(f"• {key}: {valor}")
     
-    with st.form("form_argumentos"):
-        col1, col2 = st.columns(2)
+    # Intentar ejecutar
+    completado, excepcion = ejecutar_ls_original()
+    
+    if completado:
+        # Ejecución terminada - mostrar resultado
+        st.success("✅ Generación completada con éxito")
         
+        if 'ls_output' in st.session_state and st.session_state.ls_output:
+            st.markdown("### 📄 Resultado:")
+            st.text(st.session_state.ls_output)
+        
+        # Botones de acción
+        st.markdown("---")
+        col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### Argumentos principales")
-            x = st.text_input(
-                "**x** (típicamente el sujeto/agente):",
-                placeholder="Ejemplo: Juan, el gato, Ø",
-                help="El primer argumento, usualmente quien realiza la acción"
-            )
-            
-            y = st.text_input(
-                "**y** (típicamente el paciente/tema):",
-                placeholder="Ejemplo: el jarrón, un libro, Ø",
-                help="El segundo argumento, usualmente lo afectado por la acción"
-            )
+            if st.button("🔄 Generar otra estructura"):
+                # Limpiar estado
+                for key in list(st.session_state.keys()):
+                    if key.startswith('ls_'):
+                        del st.session_state[key]
+                st.rerun()
         
         with col2:
-            st.markdown("### Argumento adicional")
-            z = st.text_input(
-                "**z** (tercer argumento, si existe):",
-                placeholder="Ejemplo: a María, Ø",
-                help="Tercer argumento, como objeto indirecto (opcional)"
-            )
+            if st.button("🏠 Volver al inicio"):
+                st.session_state.pagina = 'inicio'
+                st.rerun()
+    
+    elif excepcion and isinstance(excepcion, NecesitaInputException):
+        # Necesita input del usuario - mostrar la pregunta
+        st.markdown("### 💬 El programa necesita información")
+        
+        st.info(f"**Progreso:** {num_respuestas} preguntas respondidas")
+        
+        key = excepcion.key
+        
+        with st.form(key=f"form_{key}"):
+            st.write(excepcion.prompt)
             
-            st.markdown("### Predicado")
-            pred = st.text_input(
-                "**predicado** (verbo en infinitivo inglés o español):",
-                placeholder="Ejemplo: break, romper, run",
-                help="El verbo principal en forma de predicado"
-            )
-        
-        col_back, col_cont = st.columns([1, 4])
-        with col_back:
-            volver = st.form_submit_button("⬅️ Volver")
-        with col_cont:
-            continuar = st.form_submit_button("▶️ Generar estructura", type="primary")
-    
-    if volver:
-        st.session_state.ls_paso = 'inicio'
-        st.rerun()
-    
-    if continuar:
-        if not all([x, y, pred]):
-            st.error("⚠️ Por favor completa al menos x, y, y el predicado.")
-        else:
-            st.session_state.ls_argumentos = {'x': x, 'y': y, 'z': z if z else 'Ø'}
-            st.session_state.ls_predicado = pred
-            st.session_state.ls_paso = 'generar'
-            st.rerun()
-
-
-def paso_generar():
-    """Generar y mostrar la estructura lógica"""
-    st.markdown("## ✨ Estructura Lógica Generada")
-    
-    # Obtener datos
-    akt = st.session_state.ls_aktionsart
-    oracion = st.session_state.ls_oracion
-    args = st.session_state.ls_argumentos
-    pred = st.session_state.ls_predicado
-    es_dinamico = st.session_state.ls_es_dinamico
-    
-    # Mostrar información
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"""
-        **Cláusula:** {oracion}
-        
-        **Aktionsart:** {AKTIONSART_OPCIONES[akt]}
-        """)
-    with col2:
-        st.info(f"""
-        **Argumentos:**
-        - x = {args['x']}
-        - y = {args['y']}
-        - z = {args['z']}
-        
-        **Predicado:** {pred}'
-        """)
-    
-    # Generar estructura básica
-    estructura = generar_estructura_logica_basica(
-        akt, args['x'], args['y'], args['z'], pred, es_dinamico
-    )
-    
-    # Aplicar DO si corresponde
-    if args['x'] != 'Ø' and "estado" not in akt:
-        estructura = aplicar_DO(oracion, args['x'], estructura, es_dinamico, akt)
-        if st.button("Actualizar con intencionalidad"):
-            st.rerun()
-    
-    # Mostrar estructura
-    st.markdown("### 🎯 Estructura lógica del núcleo:")
-    st.code(estructura, language="")
-    
-    st.session_state.ls_estructura = estructura
-    
-    # Opción de añadir operadores
-    st.markdown("---")
-    st.markdown("### ➕ Capa de Operadores (Opcional)")
-    
-    st.write("""
-    Puedes añadir operadores de la **capa de cláusula** para expresar 
-    tiempo, aspecto, modalidad, etc.
-    """)
-    
-    operadores_seleccionados = []
-    
-    with st.expander("🔧 Añadir operadores"):
-        for op in OPERADORES:
-            col1, col2, col3 = st.columns([2, 3, 2])
-            
-            with col1:
-                añadir = st.checkbox(
-                    op["codigo"],
-                    key=f"op_{op['codigo']}"
+            if excepcion.tipo == 'texto':
+                # Pregunta de texto libre
+                respuesta = st.text_input(
+                    "Tu respuesta:",
+                    key=f"input_{key}",
+                    help="Escribe tu respuesta y presiona Enviar"
                 )
+                
+                # Detectar si es una pregunta numérica
+                if any(palabra in excepcion.prompt.lower() for palabra in ['número', 'escribe 1', 'escribe 2', '(1)', '(2)']):
+                    st.caption("💡 Tip: Esta pregunta espera un número como respuesta")
+                
+                submit = st.form_submit_button("✓ Enviar respuesta", type="primary")
+                
+                if submit:
+                    if respuesta.strip():
+                        # Guardar respuesta
+                        if 'ls_respuestas' not in st.session_state:
+                            st.session_state.ls_respuestas = {}
+                        st.session_state.ls_respuestas[key] = respuesta.strip()
+                        
+                        # Reiniciar contador del capture para la próxima ejecución
+                        st.session_state.ls_capture.contador_preguntas = 0
+                        
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Por favor ingresa una respuesta antes de continuar")
             
-            with col2:
-                st.write(f"*{op['descripcion']}*")
-            
-            with col3:
-                if añadir:
-                    valor = st.text_input(
-                        "Valor:",
-                        placeholder=op["ejemplos"].split(",")[0].strip(),
-                        key=f"val_{op['codigo']}"
-                    )
-                    if valor:
-                        operadores_seleccionados.append(f"{op['codigo']}: {valor}")
-    
-    # Mostrar estructura final con operadores
-    if operadores_seleccionados:
-        st.markdown("### 🎯 Estructura lógica completa:")
-        operadores_str = ", ".join(operadores_seleccionados)
-        estructura_completa = f"({operadores_str}) ({estructura})"
-        st.code(estructura_completa, language="")
-    
-    # Opciones finales
-    st.markdown("---")
-    st.write("### 🎯 ¿Qué deseas hacer ahora?")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🔄 Analizar otra cláusula"):
+            elif excepcion.tipo == 'si_no':
+                # Pregunta sí/no
+                respuesta = st.radio(
+                    "Selecciona tu respuesta:",
+                    options=["Sí", "No"],
+                    key=f"radio_{key}",
+                    horizontal=True
+                )
+                
+                submit = st.form_submit_button("✓ Enviar respuesta", type="primary")
+                
+                if submit:
+                    # Guardar respuesta
+                    if 'ls_respuestas' not in st.session_state:
+                        st.session_state.ls_respuestas = {}
+                    st.session_state.ls_respuestas[key] = (respuesta == "Sí")
+                    
+                    # Reiniciar contador del capture para la próxima ejecución
+                    st.session_state.ls_capture.contador_preguntas = 0
+                    
+                    st.rerun()
+        
+        # Botón para volver atrás si hay un error
+        st.markdown("---")
+        if st.button("⬅️ Empezar de nuevo"):
             for key in list(st.session_state.keys()):
                 if key.startswith('ls_'):
                     del st.session_state[key]
             st.rerun()
     
-    with col2:
-        if st.button("📋 Copiar estructura"):
-            st.info("Copia la estructura desde el cuadro de código arriba ⬆️")
-    
-    with col3:
-        if st.button("🏠 Volver al inicio"):
-            st.session_state.pagina = 'inicio'
+    else:
+        # Error o situación inesperada
+        st.error("❌ Ocurrió un error durante la ejecución")
+        if st.button("🔄 Reintentar desde el inicio"):
+            st.session_state.ls_paso = 'inicio'
+            for key in list(st.session_state.keys()):
+                if key.startswith('ls_'):
+                    del st.session_state[key]
             st.rerun()
 
 
+# ==================== APLICACIÓN PRINCIPAL ====================
+
 def app_estructura_logica():
-    """Aplicación principal del generador de estructuras lógicas"""
+    """Aplicación principal del wrapper"""
     inicializar_estado_ls()
     
     # Router de pasos
     if st.session_state.ls_paso == 'inicio':
         paso_inicio_ls()
-    elif st.session_state.ls_paso == 'argumentos':
-        paso_argumentos()
-    elif st.session_state.ls_paso == 'generar':
-        paso_generar()
+    elif st.session_state.ls_paso == 'ejecutando':
+        paso_ejecutando()
+    else:
+        st.error(f"Paso desconocido: {st.session_state.ls_paso}")
+        if st.button("Reiniciar"):
+            st.session_state.ls_paso = 'inicio'
+            st.rerun()
