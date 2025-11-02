@@ -1,9 +1,15 @@
+# Colores
+verde="\033[1;32m"
+azul="\033[1;34m"
+negrita="\033[1m"
+reset="\033[0m"
+
 echo ""
 echo "───────────────────────────────────────────────"
-echo "Bienvenido al Analizador Lingüístico RRG"
-echo "Versión 1.0. (2025)
-echo "Comentarios a Carlos González Vergara (cgonzalv@uc.cl)
+echo -e "${azul}Bienvenido a este asistente de análisis en RRG${reset}"
+echo -e "${azul}Versión 1.0 (2025)${reset}"
+echo -e "${azul}Comentarios a:${reset} ${verde}Carlos González Vergara (cgonzalv@uc.cl)${reset}"
 echo ""
-echo "👉 Escribe:  python main.py   para ejecutar el programa"
+echo -e "${negrita}${verde}Escribe:  python main.py   para ejecutar el programa${reset}"
 echo "───────────────────────────────────────────────"
 echo ""
