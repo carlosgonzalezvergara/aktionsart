@@ -1,0 +1,5 @@
+#!/bin/bash
+# Este archivo se ejecuta automáticamente cada vez que Binder inicia el entorno.
+# Ejecutará tu programa principal automáticamente.
+
+python main.py
