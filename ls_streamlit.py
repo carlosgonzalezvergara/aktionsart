@@ -7,6 +7,7 @@ MANTIENE 100% LA LÓGICA ORIGINAL SIN MODIFICACIONES
 import streamlit as st
 import sys
 import os
+import importlib
 from typing import Optional, Any, Callable
 from io import StringIO
 import contextlib
@@ -71,6 +72,8 @@ def ejecutar_ls_original():
     if 'ls_capture' not in st.session_state:
         st.session_state.ls_capture = StreamlitInputCapture()
     
+    # IMPORTANTE: Resetear el contador antes de cada ejecución
+    st.session_state.ls_capture.contador_preguntas = 0
     capture = st.session_state.ls_capture
     
     # Importar y monkey-patch el módulo original
@@ -80,9 +83,15 @@ def ejecutar_ls_original():
     output_buffer = StringIO()
     
     try:
-        import ls
+        # CRITICAL: Recargar el módulo para asegurar estado limpio
+        import importlib
+        if 'ls' in sys.modules:
+            import ls
+            importlib.reload(ls)
+        else:
+            import ls
         
-        # Reemplazar las funciones de entrada
+        # Reemplazar las funciones de entrada DESPUÉS de recargar
         ls.peticion = capture.peticion
         ls.input_si_no = capture.input_si_no
         
@@ -93,9 +102,13 @@ def ejecutar_ls_original():
                        st.session_state.ls_oracion_inicial,
                        'dinamico' if st.session_state.get('ls_dinamico_inicial', False) else 'no_dinamico']
         
+        # Silenciar algunos prints para evitar ruido
+        import io
+        
         # Ejecutar el código original capturando stdout
         with contextlib.redirect_stdout(output_buffer):
-            ls.main()
+            # Crear un nuevo contexto de ejecución
+            resultado = ls.main()
         
         # Si llegamos aquí, la ejecución terminó
         st.session_state.ls_output = output_buffer.getvalue()
@@ -243,15 +256,16 @@ def paso_ejecutando():
         st.write(f"**Cláusula:** {st.session_state.ls_oracion_inicial}")
         st.write(f"**Dinámico:** {'Sí' if st.session_state.ls_dinamico_inicial else 'No'}")
     
-    # Mostrar preguntas respondidas
+    # Mostrar preguntas respondidas con más detalle
     num_respuestas = len(st.session_state.get('ls_respuestas', {}))
     if num_respuestas > 0:
         with st.expander(f"✅ Preguntas respondidas ({num_respuestas})", expanded=False):
-            for key, valor in st.session_state.ls_respuestas.items():
-                st.text(f"• {key}: {valor}")
+            for i, (key, valor) in enumerate(st.session_state.ls_respuestas.items(), 1):
+                st.text(f"{i}. {key}: {valor}")
     
-    # Intentar ejecutar
-    completado, excepcion = ejecutar_ls_original()
+    # Mostrar spinner mientras ejecuta
+    with st.spinner('Ejecutando código original...'):
+        completado, excepcion = ejecutar_ls_original()
     
     if completado:
         # Ejecución terminada - mostrar resultado
@@ -259,7 +273,21 @@ def paso_ejecutando():
         
         if 'ls_output' in st.session_state and st.session_state.ls_output:
             st.markdown("### 📄 Resultado:")
-            st.text(st.session_state.ls_output)
+            
+            # Extraer la estructura lógica del output
+            output = st.session_state.ls_output
+            
+            # Buscar la estructura lógica en el output
+            if "La estructura lógica es:" in output:
+                lineas = output.split('\n')
+                for i, linea in enumerate(lineas):
+                    if "La estructura lógica es:" in linea:
+                        estructura = linea.split("La estructura lógica es:")[-1].strip()
+                        st.code(estructura, language="")
+                        break
+            else:
+                # Mostrar todo el output
+                st.text(output)
         
         # Botones de acción
         st.markdown("---")
@@ -281,37 +309,47 @@ def paso_ejecutando():
         # Necesita input del usuario - mostrar la pregunta
         st.markdown("### 💬 El programa necesita información")
         
-        st.info(f"**Progreso:** {num_respuestas} preguntas respondidas")
+        # Barra de progreso estimado
+        progreso = min(num_respuestas / 10.0, 0.9)  # Máximo 90% hasta terminar
+        st.progress(progreso, text=f"Progreso: {num_respuestas} preguntas respondidas")
         
         key = excepcion.key
         
-        with st.form(key=f"form_{key}"):
-            st.write(excepcion.prompt)
+        # Mostrar la pregunta en un formato destacado
+        st.info(excepcion.prompt)
+        
+        # Formulario para la respuesta
+        with st.form(key=f"form_{key}", clear_on_submit=False):
             
             if excepcion.tipo == 'texto':
                 # Pregunta de texto libre
                 respuesta = st.text_input(
                     "Tu respuesta:",
                     key=f"input_{key}",
-                    help="Escribe tu respuesta y presiona Enviar"
+                    help="Escribe tu respuesta y presiona el botón de abajo"
                 )
                 
-                # Detectar si es una pregunta numérica
-                if any(palabra in excepcion.prompt.lower() for palabra in ['número', 'escribe 1', 'escribe 2', '(1)', '(2)']):
-                    st.caption("💡 Tip: Esta pregunta espera un número como respuesta")
+                # Detectar si es una pregunta numérica o específica
+                prompt_lower = excepcion.prompt.lower()
+                if any(palabra in prompt_lower for palabra in ['número', 'escribe 1', 'escribe 2', '(1)', '(2)', 'indica el']):
+                    st.caption("💡 Tip: Esta pregunta espera un número específico como respuesta (ej: 1, 2, 3)")
+                elif '0' in excepcion.prompt and 'si no hay' in prompt_lower:
+                    st.caption("💡 Tip: Escribe 0 si no hay este elemento, o escribe el elemento si existe")
                 
-                submit = st.form_submit_button("✓ Enviar respuesta", type="primary")
+                submit = st.form_submit_button("✓ Enviar respuesta", type="primary", use_container_width=True)
                 
                 if submit:
                     if respuesta.strip():
                         # Guardar respuesta
                         if 'ls_respuestas' not in st.session_state:
                             st.session_state.ls_respuestas = {}
+                        
                         st.session_state.ls_respuestas[key] = respuesta.strip()
                         
-                        # Reiniciar contador del capture para la próxima ejecución
-                        st.session_state.ls_capture.contador_preguntas = 0
+                        # Debug: Mostrar que se guardó
+                        st.success(f"✓ Respuesta guardada: {respuesta.strip()}")
                         
+                        # Forzar rerun
                         st.rerun()
                     else:
                         st.warning("⚠️ Por favor ingresa una respuesta antes de continuar")
@@ -322,21 +360,32 @@ def paso_ejecutando():
                     "Selecciona tu respuesta:",
                     options=["Sí", "No"],
                     key=f"radio_{key}",
-                    horizontal=True
+                    horizontal=True,
+                    index=0
                 )
                 
-                submit = st.form_submit_button("✓ Enviar respuesta", type="primary")
+                submit = st.form_submit_button("✓ Enviar respuesta", type="primary", use_container_width=True)
                 
                 if submit:
                     # Guardar respuesta
                     if 'ls_respuestas' not in st.session_state:
                         st.session_state.ls_respuestas = {}
+                    
                     st.session_state.ls_respuestas[key] = (respuesta == "Sí")
                     
-                    # Reiniciar contador del capture para la próxima ejecución
-                    st.session_state.ls_capture.contador_preguntas = 0
+                    # Debug: Mostrar que se guardó
+                    st.success(f"✓ Respuesta guardada: {respuesta}")
                     
+                    # Forzar rerun
                     st.rerun()
+        
+        # Botón para ver debug info
+        with st.expander("🔧 Información de debug"):
+            st.write(f"**Key de pregunta:** {key}")
+            st.write(f"**Tipo:** {excepcion.tipo}")
+            st.write(f"**Número de respuestas guardadas:** {num_respuestas}")
+            st.write(f"**Respuestas actuales:**")
+            st.json(st.session_state.get('ls_respuestas', {}))
         
         # Botón para volver atrás si hay un error
         st.markdown("---")
@@ -349,6 +398,13 @@ def paso_ejecutando():
     else:
         # Error o situación inesperada
         st.error("❌ Ocurrió un error durante la ejecución")
+        
+        # Mostrar info de debug
+        st.write("**Estado actual:**")
+        st.write(f"- Respuestas guardadas: {num_respuestas}")
+        st.write(f"- Completado: {completado}")
+        st.write(f"- Tipo de excepción: {type(excepcion).__name__ if excepcion else 'None'}")
+        
         if st.button("🔄 Reintentar desde el inicio"):
             st.session_state.ls_paso = 'inicio'
             for key in list(st.session_state.keys()):
