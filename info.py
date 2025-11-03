@@ -14,7 +14,7 @@ Lenguaje: Python
 ───────────────────────────────────────────────
 
 Descripción general:
-Vendler es una herramienta computacional diseñada para asistir en la detección del aktionsart (aspecto léxico) y en la formalización de estructuras lógicas dentro del marco teórico de la Gramática de Papel y Referencia (Role and Reference Grammar, RRG). El programa implementa, en forma interactiva, las principales pruebas diagnósticas semánticas y sintácticas que permiten determinar la clase aspectual de un predicado y su representación lógica asociada.
+Vendler es una herramienta computacional diseñada para asistir en la detección del aktionsart (aspecto léxico) y en la formalización de estructuras lógicas dentro del marco teórico de la Gramática de Papel y Referencia (Role and Reference Grammar, RRG). El programa implementa, en forma interactiva, las principales pruebas diagnósticas morfosintácticas que permiten determinar la clase aspectual de un predicado y su representación lógica asociada.
 
 Propósito y alcance:
 El desarrollo de esta aplicación busca ofrecer un entorno guiado que facilite tanto la investigación lingüística como la enseñanza avanzada de gramática y semántica. A través de una interfaz de preguntas sucesivas, el usuario reproduce el razonamiento analítico de la RRG, respondiendo a pruebas que juzgan los rasgos de causatividad, estatividad, puntualidad, telicidad y dinamicidad. El sistema genera como salida una clasificación aspectual y una estructura lógica formalizada, siguiendo la notación propuesta por Van Valin (2005) y actualizada en Van Valin (2023).
@@ -26,6 +26,10 @@ Aplicaciones:
 • Apoyo a la docencia universitaria en gramática general, semántica léxica y teoría de la predicación.
 • Herramienta de verificación aspectual para estudios de corpus o descripciones verbales.
 • Modelo de referencia para proyectos de lingüística computacional en español orientados a la semántica.
+
+Contacto:
+Carlos González Vergara
+cgonzalv@uc.cl
 
 ───────────────────────────────────────────────
 Propiedad intelectual
