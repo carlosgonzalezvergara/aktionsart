@@ -19,8 +19,9 @@ def ejecutar_programa(programa):
 
 def mostrar_menu() -> str:
     mensaje_bienvenida = """
-Bienvenido a Vendler, asistente para la detección de aktionsart y la formalización de estructuras
-lógicas básicas en el marco de la Gramática de Papel y Referencia (RRG).
+Vendler
+Asistente para la detección de aktionsart y la formalización de estructuras
+lógicas básicas en el marco de la Gramática de Papel y Referencia (RRG)
 
 ¿Qué quieres hacer?:
 """
@@ -39,7 +40,7 @@ lógicas básicas en el marco de la Gramática de Papel y Referencia (RRG).
 
 def main():
     while True:
-        #limpiar_consola()
+        limpiar_consola()
         opcion = mostrar_menu()
         if opcion == "1":
             ejecutar_programa("aktionsart.py")
