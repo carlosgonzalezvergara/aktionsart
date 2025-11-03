@@ -3,7 +3,7 @@ reset="\033[0m"
 
 echo ""
 echo "───────────────────────────────────────────────"
-echo "Bienvenido al Analizador Lingüístico RRG"
+echo "Bienvenido a este asistente de análisis en RRG"
 echo "Versión 1.0 (2025)"
 echo "Comentarios a: Carlos González Vergara (cgonzalv@uc.cl)"
 echo ""
