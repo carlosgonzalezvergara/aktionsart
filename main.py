@@ -1,10 +1,8 @@
 import subprocess
 import time
 
-
 def limpiar_consola():
     print("\n" * 100)
-
 
 def ejecutar_programa(programa):
     try:
@@ -15,7 +13,6 @@ def ejecutar_programa(programa):
         print(f"Error al ejecutar {programa}: {e}")
     except FileNotFoundError:
         print(f"No se encontró el archivo {programa} en el directorio actual.")
-
 
 def mostrar_menu() -> str:
     mensaje_bienvenida = """
@@ -28,15 +25,15 @@ lógicas básicas en el marco de la Gramática de Papel y Referencia (RRG)
     opciones = [
         "1. Identificar el aktionsart de un predicado (y, opcionalmente, obtener su estructura lógica)",
         "2. Obtener la estructura lógica de una cláusula (si ya conoces el aktionsart de su predicado)",
-        "3. Salir"
+        "3. Mostrar información sobre el programa",
+        "4. Salir"
     ]
 
     print(mensaje_bienvenida)
     for opcion in opciones:
         print(opcion)
 
-    return input("\nPor favor, selecciona una opción (1-3): ")
-
+    return input("\nPor favor, selecciona una opción (1-4): ")
 
 def main():
     while True:
@@ -47,6 +44,8 @@ def main():
         elif opcion == "2":
             ejecutar_programa("ls.py")
         elif opcion == "3":
+            ejecutar_programa("info.py")
+        elif opcion == "4":
             print("\nGracias por usar este asistente. ¡Hasta luego!")
             break
         else:
