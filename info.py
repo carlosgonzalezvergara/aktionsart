@@ -14,7 +14,7 @@ Lenguaje: Python
 ───────────────────────────────────────────────
 
 Descripción general:
-Vendler es una herramienta computacional diseñada para asistir en la detección del aktionsart (aspecto léxico) y en la formalización de estructuras lógicas dentro del marco teórico de la Gramática de Papel y Referencia (Role and Reference Grammar, RRG). El programa implementa, en forma interactiva, las principales pruebas diagnósticas morfosintácticas que permiten determinar la clase aspectual de un predicado y su representación lógica asociada.
+Vendler es una herramienta computacional diseñada para asistir en la detección del aktionsart (aspecto léxico) de predicados en español y en la formalización de estructuras lógicas dentro del marco teórico de la Gramática de Papel y Referencia (Role and Reference Grammar, RRG). El programa implementa, en forma interactiva, las principales pruebas diagnósticas morfosintácticas que permiten determinar en español la clase aspectual de un predicado y su representación lógica asociada.
 
 Propósito y alcance:
 El desarrollo de esta aplicación busca ofrecer un entorno guiado que facilite tanto la investigación lingüística como la enseñanza avanzada de gramática y semántica. A través de una interfaz de preguntas sucesivas, el usuario reproduce el razonamiento analítico de la RRG, respondiendo a pruebas que juzgan los rasgos de causatividad, estatividad, puntualidad, telicidad y dinamicidad. El sistema genera como salida una clasificación aspectual y una estructura lógica formalizada, siguiendo la notación propuesta por Van Valin (2005) y actualizada en Van Valin (2023).
@@ -37,20 +37,6 @@ Propiedad intelectual
 Licencia Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)
 Copyright (c) 2025 Carlos González Vergara
 
-Esta obra está bajo una licencia de Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional.
-
-Usted es libre de:
-• Compartir, copiar y redistribuir el material en cualquier medio o formato.
-• Adaptar, remezclar, transformar y construir a partir del material.
-
-Bajo los siguientes términos:
-• Atribución: Debe otorgar el crédito apropiado, proporcionar un enlace a la licencia e indicar si se han realizado cambios. Puede hacerlo de cualquier manera razonable, pero no de una manera que sugiera que el licenciante lo respalda a usted o a su uso.
-• NoComercial: No puede utilizar el material con fines comerciales.
-• CompartirIgual: Si remezcla, transforma o crea a partir del material, debe distribuir su contribución bajo la misma licencia que el original.
-
-No hay restricciones adicionales. No puede aplicar términos legales ni medidas tecnológicas que restrinjan legalmente a otros de hacer cualquier cosa que la licencia permita.
-
-Para ver una copia de esta licencia, visite:
 https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es
 ───────────────────────────────────────────────
 """)
