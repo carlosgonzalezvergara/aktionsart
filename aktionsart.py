@@ -232,8 +232,8 @@ def determinar_aktionsart(pred_es: RasgosPred) -> Optional[Aktionsart]:
 def prueba_causatividad(oracion: str) -> bool:
     print("\nPRUEBA DE CAUSATIVIDAD")
     print(f"\nIntenta reformular «{oracion}» siguiendo estos modelos: ")
-    print("• El gato rompió el jarrón → El gato HIZO QUE el jarrón se rompiera")
-    print("• Ana le dio un libro a Pepe → Ana HIZO QUE Pepe tuviera un libro")
+    print("• El gato rompió el jarrón → El gato HIZO/CAUSÓ QUE el jarrón se rompiera")
+    print("• Ana le dio un libro a Pepe → Ana HIZO/CAUSÓ QUE Pepe tuviera un libro")
     reformulacion = peticion("\nEscribe tu reformulación (o «0» si no es posible): ")
     if reformulacion == '0' or not reformulacion.strip():
         return False
@@ -257,7 +257,7 @@ def prueba_estatividad(oracion: str) -> bool:
         f"\nObserva el siguiente diálogo:"
         f"\n—¿Qué pasó hace un rato / ayer / el mes pasado?"
         f"\n—{oracion[0].upper() + oracion[1:]}."
-        f"\n\n¿Te parece que «{oracion}» es una buena respuesta a la pregunta? (con cualquiera de las opciones) (s/n): ")
+        f"\n\n¿Te parece que «{oracion}» es una buena respuesta a la pregunta? (con al menos una de las opciones) (s/n): ")
 
 def prueba_dinamicidad(datos_clausula: DatosClause) -> bool:
     perifrasis_gerundio = construir_perif_gerundio('presente', datos_clausula)
@@ -271,7 +271,7 @@ def prueba_duratividad(datos_clausula: DatosClause) -> bool:
     print("\nPRUEBA DE PUNTUALIDAD")
     return respuesta_si_no(
         f"\nObserva esta expresión: «{perifrasis_gerundio[0].upper() + perifrasis_gerundio[1:]} durante una hora / un mes»."
-        f"\n¿Es esta una expresión posible? (sin que el evento tome una interpretación iterativa o de inminencia) (s/n): ")
+        f"\n¿Es esta una expresión posible (con al menos una de las opciones)? (sin que el evento tome una interpretación iterativa o de inminencia) (s/n): ")
 
 def prueba_telicidad(datos_clausula: DatosClause) -> bool:
     perifrasis_gerundio = construir_perif_gerundio_subj(datos_clausula)
