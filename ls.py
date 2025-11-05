@@ -448,8 +448,16 @@ def manejar_creacion(x, y, z, pred, es_causativa):
 
 def manejar_consumo(x, y, z, pred, es_causativa):
     if es_causativa:
-        pred = peticion(f"Escribe en infinitivo la actividad realizada por «{z}» (ej: «comer»): ").lower().replace(" ", ".")
-        return f"[do' ({x}, Ø)] CAUSE [do' ({z}, [{pred}' ({z}, {y})]) ∧ PROC being.consumed' ({y}) ∧ FIN consumed' ({y})]"
+        # Pedir el verbo original de la oración para decidir el flujo
+        verbo_original = peticion("Escribe el infinitivo del verbo de la oración original (ej: «alimentar»): ").lower().replace(" ", ".")       
+        # Caso especial para verbos tipo "alimentar"
+        if verbo_original in ["alimentar", "nutrir", "cebar", "hidratar", "saciar", "empachar"]:
+            pred = peticion(f"Escribe en infinitivo la actividad realizada por «{y}» (ej: «comer»): ").lower().replace(" ", ".")
+            alimento = peticion("Escribe el alimento que fue consumido (ej: «una manzana»): ").lower().replace(" ", ".")
+            return f"[do' ({x}, Ø)] CAUSE [do' ({y}, [{pred}' ({y}, {alimento})]) ∧ PROC being.consumed' ({alimento}) ∧ FIN consumed' ({alimento})]"
+        else:
+            pred = peticion(f"Escribe en infinitivo la actividad realizada por «{z}» (ej: «comer»): ").lower().replace(" ", ".")
+            return f"[do' ({x}, Ø)] CAUSE [do' ({z}, [{pred}' ({z}, {y})]) ∧ PROC being.consumed' ({y}) ∧ FIN consumed' ({y})]"
     else:
         return f"do' ({x}, [{pred}' ({x}, {y})]) ∧ PROC being.consumed' ({y}) ∧ FIN consumed' ({y})"
 
