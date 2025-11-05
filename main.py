@@ -16,10 +16,6 @@ def ejecutar_programa(programa):
 
 def mostrar_menu() -> str:
     mensaje_bienvenida = """
-Vendler
-Asistente para la detección de aktionsart y la formalización de estructuras
-lógicas básicas en el marco de la Gramática de Papel y Referencia (RRG)
-
 ¿Qué quieres hacer?:
 """
     opciones = [
@@ -46,7 +42,7 @@ def main():
         elif opcion == "3":
             ejecutar_programa("info.py")
         elif opcion == "4":
-            print("\nGracias por usar este asistente. ¡Hasta luego!")
+            print("\n¡Gracias por usar Vendler! Si tienes comentarios, críticas o preguntas, escribe a cgonzalv@uc.cl")
             break
         else:
             print("\nOpción no válida. Por favor, intenta de nuevo.")
