@@ -8,7 +8,7 @@
 def main():
     print("""
 ───────────────────────────────────────────────
-Autor: Carlos González Vergara
+Autor: Carlos González Vergara (cgonzalv@uc.cl)
 Versión: 1.0 (2025)
 Lenguaje: Python
 ───────────────────────────────────────────────
@@ -27,16 +27,7 @@ Aplicaciones:
 • Herramienta de verificación aspectual para estudios de corpus o descripciones verbales.
 • Modelo de referencia para proyectos de lingüística computacional en español orientados a la semántica.
 
-Contacto:
-Carlos González Vergara
-cgonzalv@uc.cl
-
-───────────────────────────────────────────────
-Propiedad intelectual
-───────────────────────────────────────────────
 Licencia Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)
-Copyright (c) 2025 Carlos González Vergara
-
 https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es
 ───────────────────────────────────────────────
 """)
