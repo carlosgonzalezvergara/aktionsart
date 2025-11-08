@@ -208,7 +208,6 @@ def causativity_test(clause: str) -> bool:
     cap = paraphrase[0].upper() + paraphrase[1:]
     print(f"• '{cap}' should preserve the meaning of '{clause}'.")
     print(f"• '{cap}' must not add new arguments nor duplicate existing ones in '{clause}'.")
-    print(f"• The argument expressed as the direct object in '{clause}' should undergo a change of state in '{cap}'.")
     print("• Exclude consumption ('eat an apple') and creation ('write a story') readings.")
     return yes_no(f"\nDoes '{cap}' meet these criteria? (y/n): ")
 
@@ -227,7 +226,7 @@ def stativity_test(clause: str) -> bool:
         f"\nConsider the following dialogue:"
         f"\n—What happened a moment ago / yesterday / last month?"
         f"\n—{clause[0].upper() + clause[1:]}."
-        f"\n\nDo you feel '{clause}' is a good answer to that question (for at least one time option)? (y/n): ")
+        f"\n\nDo you think '{clause}' is a good answer to that question (for at least one time option)? (y/n): ")
 
 
 def dynamicity_test(data: ClauseData) -> bool:
