@@ -240,7 +240,6 @@ def prueba_causatividad(oracion: str) -> bool:
     print("\nConsidera lo siguiente:")
     print(f"• «{reformulacion[0].upper() + reformulacion[1:]}» debe mantener el significado de «{oracion}».")
     print(f"• «{reformulacion[0].upper() + reformulacion[1:]}» no debe añadir nuevos argumentos ni repetir otros ya existentes en «{oracion}».")
-    print(f"• El argumento expresado en el complemento directo de «{oracion}» debe sufrir un cambio de estado en «{reformulacion}».")
     print("• No debe tratarse de expresiones de consumo («comer una manzana») o creación («escribir un cuento»).")
     return respuesta_si_no(f"\n¿«{reformulacion[0].upper() + reformulacion[1:]}» cumple con estos criterios? (s/n): ")
 
