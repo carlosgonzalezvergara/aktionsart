@@ -111,7 +111,7 @@ def set_spanish_locale():
 
 
 def limpiar_consola():
-    print("\n" * 100)
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def mensaje_reinicio() -> None:

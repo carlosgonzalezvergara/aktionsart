@@ -1,8 +1,9 @@
+import os
 import subprocess
 import time
 
 def limpiar_consola():
-    print("\n" * 100)
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def ejecutar_programa(programa):
     try:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import locale
 import logging
+import os
 import readline
 import subprocess
 import sys
@@ -220,7 +221,7 @@ def set_spanish_locale():
 
 
 def limpiar_consola():
-    print("\n" * 100)
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def peticion(prompt: str) -> str:

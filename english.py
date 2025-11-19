@@ -18,6 +18,7 @@ Notes:
 """
 import locale
 import logging
+import os
 import readline
 import subprocess
 import time
@@ -111,8 +112,8 @@ def set_english_locale():
     return locale.setlocale(locale.LC_ALL, '')
 
 
-def clear_console():
-    print("\n" * 100)
+def limpiar_consola():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def restart_message() -> None:
