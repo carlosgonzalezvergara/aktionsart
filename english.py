@@ -112,7 +112,7 @@ def set_english_locale():
     return locale.setlocale(locale.LC_ALL, '')
 
 
-def limpiar_consola():
+def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
