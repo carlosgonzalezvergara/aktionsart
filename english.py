@@ -2,19 +2,7 @@
 """
 Aktionsart detector (EN version)
 --------------------------------
-A faithful adaptation of the user's Spanish program for English.
-- Prompts and diagnostics are phrased in English.
-- Core logic and interaction flow are preserved.
-- Tests used: causativity paraphrase; stativity (answer to "What happened?");
-  punctuality via compatibility with a past progressive + "for an hour";
-  telicity via "was V‑ing and suddenly stopped V‑ing → has V‑ed" entailment;
-  dynamicity via compatibility with manner adverbs (vigorously / forcefully / with effort).
-
-Notes:
-- Keep infinitive, gerund, and past participle as user inputs (English morphology is irregular).
-- Person/number selection uses the same 1s/2s/3s/1p/2p/3p scheme for auxiliary agreement.
-- The program calls an LS module at the end (ls_en.py by default). Adjust `LS_SCRIPT`
-  if you prefer a different filename.
+Automated version using spaCy for morphosyntactic analysis.
 """
 import locale
 import logging
@@ -26,11 +14,19 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Sequence, Union
+import spacy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# --- SPA_CY SETUP ---
+# Try to load the English model. Fallback to manual if not found.
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    nlp = None
+
 # ------------------------- Config -------------------------
-LS_SCRIPT = "ls_en.py"  # change to your logical-structure script if needed
+LS_SCRIPT = "ls_en.py" 
 
 class Answer(Enum):
     YES = ["yes", "y"]
@@ -67,6 +63,8 @@ class Features:
 class ClauseData:
     gerund: str = ""
     participle: str = ""
+    # We keep 'infinitive' in data for internal logic references if needed
+    infinitive: str = "" 
     subject: str = ""
     postverbal: str = ""
     person_number: str = ""
@@ -75,30 +73,139 @@ class ClauseData:
 
 # Auxiliaries for English agreement
 BE_PRESENT = {
-    '1s': "am",
-    '2s': "are",
-    '3s': "is",
-    '1p': "are",
-    '2p': "are",
-    '3p': "are"
+    '1s': "am", '2s': "are", '3s': "is",
+    '1p': "are", '2p': "are", '3p': "are"
 }
 
 BE_PAST = {
-    '1s': "was",
-    '2s': "were",
-    '3s': "was",
-    '1p': "were",
-    '2p': "were",
-    '3p': "were"
+    '1s': "was", '2s': "were", '3s': "was",
+    '1p': "were", '2p': "were", '3p': "were"
 }
 
 HAVE_PRESENT = {
-    '1s': "have",
-    '2s': "have",
-    '3s': "has",
-    '1p': "have",
-    '2p': "have",
-    '3p': "have"
+    '1s': "have", '2s': "have", '3s': "has",
+    '1p': "have", '2p': "have", '3p': "have"
+}
+
+# --- IRREGULAR VERBS DICTIONARY ---
+# Maps Infinitive -> {ger: Gerund, pp: Past Participle}
+# Note: We map the most common irregulars to ensure correct test formation.
+IRREGULARS = {
+    "be": {"ger": "being", "pp": "been"},
+    "have": {"ger": "having", "pp": "had"},
+    "do": {"ger": "doing", "pp": "done"},
+    "go": {"ger": "going", "pp": "gone"},
+    "say": {"ger": "saying", "pp": "said"},
+    "make": {"ger": "making", "pp": "made"},
+    "get": {"ger": "getting", "pp": "gotten"},
+    "know": {"ger": "knowing", "pp": "known"},
+    "think": {"ger": "thinking", "pp": "thought"},
+    "take": {"ger": "taking", "pp": "taken"},
+    "see": {"ger": "seeing", "pp": "seen"},
+    "come": {"ger": "coming", "pp": "come"},
+    "want": {"ger": "wanting", "pp": "wanted"},
+    "look": {"ger": "looking", "pp": "looked"},
+    "use": {"ger": "using", "pp": "used"},
+    "find": {"ger": "finding", "pp": "found"},
+    "give": {"ger": "giving", "pp": "given"},
+    "tell": {"ger": "telling", "pp": "told"},
+    "work": {"ger": "working", "pp": "worked"},
+    "call": {"ger": "calling", "pp": "called"},
+    "try": {"ger": "trying", "pp": "tried"},
+    "ask": {"ger": "asking", "pp": "asked"},
+    "need": {"ger": "needing", "pp": "needed"},
+    "feel": {"ger": "feeling", "pp": "felt"},
+    "become": {"ger": "becoming", "pp": "become"},
+    "leave": {"ger": "leaving", "pp": "left"},
+    "put": {"ger": "putting", "pp": "put"},
+    "mean": {"ger": "meaning", "pp": "meant"},
+    "keep": {"ger": "keeping", "pp": "kept"},
+    "let": {"ger": "letting", "pp": "let"},
+    "begin": {"ger": "beginning", "pp": "begun"},
+    "seem": {"ger": "seeming", "pp": "seemed"},
+    "help": {"ger": "helping", "pp": "helped"},
+    "talk": {"ger": "talking", "pp": "talked"},
+    "turn": {"ger": "turning", "pp": "turned"},
+    "start": {"ger": "starting", "pp": "started"},
+    "show": {"ger": "showing", "pp": "shown"},
+    "hear": {"ger": "hearing", "pp": "heard"},
+    "play": {"ger": "playing", "pp": "played"},
+    "run": {"ger": "running", "pp": "run"},
+    "move": {"ger": "moving", "pp": "moved"},
+    "live": {"ger": "living", "pp": "lived"},
+    "believe": {"ger": "believing", "pp": "believed"},
+    "bring": {"ger": "bringing", "pp": "brought"},
+    "happen": {"ger": "happening", "pp": "happened"},
+    "write": {"ger": "writing", "pp": "written"},
+    "sit": {"ger": "sitting", "pp": "sat"},
+    "stand": {"ger": "standing", "pp": "stood"},
+    "lose": {"ger": "losing", "pp": "lost"},
+    "pay": {"ger": "paying", "pp": "paid"},
+    "meet": {"ger": "meeting", "pp": "met"},
+    "include": {"ger": "including", "pp": "included"},
+    "continue": {"ger": "continuing", "pp": "continued"},
+    "set": {"ger": "setting", "pp": "set"},
+    "learn": {"ger": "learning", "pp": "learned"},
+    "change": {"ger": "changing", "pp": "changed"},
+    "lead": {"ger": "leading", "pp": "led"},
+    "understand": {"ger": "understanding", "pp": "understood"},
+    "watch": {"ger": "watching", "pp": "watched"},
+    "follow": {"ger": "following", "pp": "followed"},
+    "stop": {"ger": "stopping", "pp": "stopped"},
+    "create": {"ger": "creating", "pp": "created"},
+    "speak": {"ger": "speaking", "pp": "spoken"},
+    "read": {"ger": "reading", "pp": "read"},
+    "allow": {"ger": "allowing", "pp": "allowed"},
+    "add": {"ger": "adding", "pp": "added"},
+    "spend": {"ger": "spending", "pp": "spent"},
+    "grow": {"ger": "growing", "pp": "grown"},
+    "open": {"ger": "opening", "pp": "opened"},
+    "walk": {"ger": "walking", "pp": "walked"},
+    "win": {"ger": "winning", "pp": "won"},
+    "offer": {"ger": "offering", "pp": "offered"},
+    "remember": {"ger": "remembering", "pp": "remembered"},
+    "love": {"ger": "loving", "pp": "loved"},
+    "consider": {"ger": "considering", "pp": "considered"},
+    "appear": {"ger": "appearing", "pp": "appeared"},
+    "buy": {"ger": "buying", "pp": "bought"},
+    "wait": {"ger": "waiting", "pp": "waited"},
+    "serve": {"ger": "serving", "pp": "served"},
+    "die": {"ger": "dying", "pp": "died"},
+    "send": {"ger": "sending", "pp": "sent"},
+    "expect": {"ger": "expecting", "pp": "expected"},
+    "build": {"ger": "building", "pp": "built"},
+    "stay": {"ger": "staying", "pp": "stayed"},
+    "fall": {"ger": "falling", "pp": "fallen"},
+    "cut": {"ger": "cutting", "pp": "cut"},
+    "reach": {"ger": "reaching", "pp": "reached"},
+    "kill": {"ger": "killing", "pp": "killed"},
+    "remain": {"ger": "remaining", "pp": "remained"},
+    "suggest": {"ger": "suggesting", "pp": "suggested"},
+    "raise": {"ger": "raising", "pp": "raised"},
+    "pass": {"ger": "passing", "pp": "passed"},
+    "sell": {"ger": "selling", "pp": "sold"},
+    "require": {"ger": "requiring", "pp": "required"},
+    "report": {"ger": "reporting", "pp": "reported"},
+    "decide": {"ger": "deciding", "pp": "decided"},
+    "pull": {"ger": "pulling", "pp": "pulled"},
+    "break": {"ger": "breaking", "pp": "broken"},
+    "teach": {"ger": "teaching", "pp": "taught"},
+    "eat": {"ger": "eating", "pp": "eaten"},
+    "drive": {"ger": "driving", "pp": "driven"},
+    "drink": {"ger": "drinking", "pp": "drunk"},
+    "sing": {"ger": "singing", "pp": "sung"},
+    "swim": {"ger": "swimming", "pp": "swum"},
+    "fly": {"ger": "flying", "pp": "flown"},
+    "draw": {"ger": "drawing", "pp": "drawn"},
+    "forget": {"ger": "forgetting", "pp": "forgotten"},
+    "hit": {"ger": "hitting", "pp": "hit"},
+    "catch": {"ger": "catching", "pp": "caught"},
+    "sleep": {"ger": "sleeping", "pp": "slept"},
+    "throw": {"ger": "throwing", "pp": "thrown"},
+    "wake": {"ger": "waking", "pp": "woken"},
+    "wear": {"ger": "wearing", "pp": "worn"},
+    "choose": {"ger": "choosing", "pp": "chosen"},
+    "hide": {"ger": "hiding", "pp": "hidden"},
 }
 
 
@@ -162,17 +269,190 @@ def multiple_choice(question: str, options: Sequence[Union[str, Sequence[str]]],
             logging.error(f"Error getting answer: {e}")
 
 
+# --- AUTOMATIC ANALYSIS FUNCTIONS ---
+
+def generate_english_forms(lemma: str):
+    """
+    Generates Gerund and Past Participle using dictionary + heuristic rules.
+    """
+    lemma = lemma.lower().strip()
+    
+    # 1. Check dictionary
+    if lemma in IRREGULARS:
+        return IRREGULARS[lemma]["ger"], IRREGULARS[lemma]["pp"]
+    
+    # 2. Regular Rules
+    # Gerund
+    if lemma.endswith("ie"):
+        ger = lemma[:-2] + "ying" # die -> dying
+    elif lemma.endswith("e") and not lemma.endswith("ee"):
+        ger = lemma[:-1] + "ing" # make -> making
+    else:
+        # Simplified consonant doubling check (CVC)
+        # (This is a basic heuristic, covering common cases like 'stop', 'plan')
+        if len(lemma) > 2 and lemma[-1] not in "aeiouwyx" and lemma[-2] in "aeiou" and lemma[-3] not in "aeiou":
+             ger = lemma + lemma[-1] + "ing"
+        else:
+             ger = lemma + "ing"
+             
+    # Past Participle (Regular)
+    if lemma.endswith("e"):
+        pp = lemma + "d"
+    else:
+        # Same doubling rule
+        if len(lemma) > 2 and lemma[-1] not in "aeiouwyx" and lemma[-2] in "aeiou" and lemma[-3] not in "aeiou":
+             pp = lemma + lemma[-1] + "ed"
+        else:
+             pp = lemma + "ed"
+             
+    return ger, pp
+
+def detect_person_number(doc, verb_token, idx):
+    """
+    Deduces Person/Number based on the Subject found by spaCy.
+    """
+    # Find the subject of the verb
+    subj_token = None
+    for token in doc:
+        if token.head == verb_token and "subj" in token.dep_:
+            subj_token = token
+            break
+            
+    if not subj_token:
+        return "3s" # Default if no subject found
+    
+    text = subj_token.text.lower()
+    
+    # Pronouns
+    if text == "i": return "1s"
+    if text == "you": return "2s" # Ambiguous, but 2s covers 'are/were' which is same for 2p
+    if text == "we": return "1p"
+    if text == "they": return "3p"
+    if text in ["he", "she", "it"]: return "3s"
+    
+    # Nouns
+    # spaCy Morphology check
+    morph = subj_token.morph.to_dict()
+    number = morph.get("Number", "Sing")
+    
+    if number == "Plur":
+        return "3p"
+    else:
+        return "3s"
+
+def analyze_automatically(clause, data):
+    """
+    Uses spaCy to analyze the clause structure and morphology.
+    Returns: (Success, Conjugated_Verb, Clean_Lemma)
+    """
+    if not nlp: return False, "", ""
+    
+    doc = nlp(clause)
+    verb_token = None
+    
+    # 1. Search for ROOT Verb/Aux
+    for token in doc:
+        if token.dep_ == "ROOT" and token.pos_ in ["VERB", "AUX"]:
+            verb_token = token
+            break
+            
+    # 2. Search for any Verb
+    if not verb_token:
+        for token in doc:
+            if token.pos_ in ["VERB", "AUX"]:
+                verb_token = token
+                break
+                
+    # 3. Aggressive fallback for single words (e.g., "Ran")
+    if not verb_token and len(doc) <= 2:
+        for token in doc:
+             if token.pos_ not in ["DET", "PRON"]:
+                 verb_token = token
+                 break
+                 
+    if not verb_token: return False, "", ""
+    
+    # Get Lemma and Forms
+    lemma = verb_token.lemma_.lower()
+    
+    # Emergency patch for 'ran' -> 'ran' lemma issue in small models
+    if lemma == verb_token.text.lower():
+        # Common mistake with strong verbs if model is uncertain
+        # We check if the word is actually in our irregular dict as a Past form?
+        # Simplified approach: check dictionary keys for matches if lemma seems wrong?
+        # For now, we trust spaCy or the irregular dict.
+        pass
+
+    ger, pp = generate_english_forms(lemma)
+    
+    if not ger or not pp: return False, "", ""
+    
+    data.infinitive = lemma
+    data.gerund = ger
+    data.participle = pp
+    
+    # Detect Person/Number
+    data.person_number = detect_person_number(doc, verb_token, verb_token.i)
+    
+    # Split Sentence (Simple split by index, no clitics in English)
+    idx = verb_token.i
+    data.subject = doc[:idx].text.strip()
+    data.postverbal = doc[idx+1:].text.strip()
+    
+    return True, verb_token.text, lemma
+
+
 def collect_clause_info(clause: str, data: ClauseData) -> ClauseData:
+    print("\nAnalyzing clause...", end="\r")
+    
+    success, verb_visual, lemma_visual = analyze_automatically(clause, data)
+    
+    if success:
+        # Map for user-friendly display
+        pn_map = {
+            "1s": "1st person singular (I)",
+            "2s": "2nd person (You)",
+            "3s": "3rd person singular (He/She/It)",
+            "1p": "1st person plural (We)",
+            "2p": "2nd person plural (You)", # Same as 2s in English aux
+            "3p": "3rd person plural (They)"
+        }
+        desc_pn = pn_map.get(data.person_number, "Unknown")
+        
+        print("\n" + "="*50)
+        print(f"AUTOMATIC ANALYSIS:")
+        print(f"• Detected Verb:    «{verb_visual}»")
+        print(f"• Person/Number:    {desc_pn}")
+        print("-" * 50)
+        print(f"• Infinitive:       {lemma_visual}")
+        print(f"• Gerund:           {data.gerund}")
+        print(f"• Past Participle:  {data.participle}")
+        print("-" * 50)
+        print(f"• Before verb:      «{data.subject if data.subject else 'Ø'}»")
+        print(f"• After verb:       «{data.postverbal if data.postverbal else 'Ø'}»")
+        print("="*50)
+        
+        if yes_no("\nIs this analysis correct? (y/n): "):
+            data.got_forms = True
+            return data
+        else:
+            print("\nUnderstood. Switching to manual entry.")
+
+    # --- MANUAL FALLBACK ---
     data.gerund = prompt_user(f"\nType the GERUND of the verb in '{clause}' (e.g., 'melting', 'telling'): ")
     data.participle = prompt_user(f"Type the PAST PARTICIPLE (e.g., 'melted', 'told'): ")
+    
     subj_in = prompt_user(f"Type everything that comes BEFORE the verb in '{clause}' (0 if nothing): ")
     data.subject = "" if subj_in == "0" else subj_in
+    
     post_in = prompt_user(f"Type everything that comes AFTER the verb in '{clause}' (0 if nothing): ")
     data.postverbal = "" if post_in == "0" else post_in
+    
     pn_question = "Type the person and number of the verb"
     pn_suffix = "(1s/2s/3s/1p/2p/3p): "
     pn_options: List[str] = ['1s', '2s', '3s', '1p', '2p', '3p']
     data.person_number = multiple_choice(pn_question, pn_options, pn_suffix)
+    
     data.got_forms = True
     return data
 
@@ -191,6 +471,7 @@ def build_perfect(data: ClauseData) -> str:
 
 def build_stop(data: ClauseData) -> str:
     # Neutral: subject + stopped + V‑ing (+ postverbal)
+    # In English, "stopped" works for all persons
     parts = [data.subject or "(subject)", f"stopped {data.gerund}", data.postverbal]
     return " ".join(p for p in parts if p)
 
@@ -355,7 +636,7 @@ def show_result(original_clause: str, akt: Aktionsart, feats: Features) -> None:
     print("\nThis predicate is classified as such because it shows the following features:")
     print(' '.join(feat_str))
 
-    # Logical structure option: currently disabled
+    # Logical structure option disabled
     # if yes_no("\nWould you like to obtain the logical structure of this clause? (y/n): "):
     #     print("\nRunning the selected option...")
     #     time.sleep(1)
@@ -365,7 +646,6 @@ def show_result(original_clause: str, akt: Aktionsart, feats: Features) -> None:
 def run_ls(akt: Aktionsart, original_clause: str, is_dynamic: bool) -> None:
     """
     Call the logical structure module (ls_en.py).
-    Currently disabled until ls_en.py is implemented.
     """
     try:
         dyn_str = "dynamic" if is_dynamic else "non_dynamic"

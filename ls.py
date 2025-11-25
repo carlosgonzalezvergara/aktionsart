@@ -7,6 +7,22 @@ import subprocess
 import sys
 import time
 import typing
+import re
+from deep_translator import GoogleTranslator
+
+# --- LISTA DE PROTECCIÓN: Palabras clave de RRG que NO deben traducirse ---
+RRG_KEYWORDS = {
+    "do", "cause", "become", "ingr", "proc", "seml", "fin", "exist", 
+    "be", "be-loc", "know", "have", "feel", "see", "hear", "smell", "taste", 
+    "covering.path.distance", "weather", "if", "evid", "sta", "tns", "mod", 
+    "asp", "not", "purp", "being.created", "being.consumed", "consumed",
+    "have.as.part", "have.as.kin", "have.enough.with", "express", "hit",
+    "move.away.from.reference.point", "move.up.from.reference.point", 
+    "move.down.from.reference.point", "not", "y", "o"
+}
+
+# Caché para no consultar a Google repetidamente por la misma palabra
+CACHE_TRADUCCION = {}
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -255,6 +271,12 @@ def buscar_verbo(verbo, diccionario):
 
 
 def añadir_operadores(estructura_logica):
+    # --- Definición de Estilos ANSI ---
+    ITALICA = "\033[3m"
+    ATENUADO = "\033[2m"  # Simula el subíndice haciéndolo menos brillante
+    RESET = "\033[0m"
+    # ----------------------------------
+
     if input_si_no("\n¿Quieres añadir operadores a la estructura lógica? (s/n): "):
         print("\nOperadores clausulares:")
         for i, op in enumerate(OPERADORES[:4], 1):
@@ -267,8 +289,10 @@ def añadir_operadores(estructura_logica):
             print(f"{i}. {op.descripcion}")
         print("\nEscribe el número del operador que quieras incluir y aprieta «Enter» para seleccionarlo.")
         print("Escribe «0» cuando quieras terminar la selección.\n")
+        
         operadores_seleccionados = []
         operadores_ya_seleccionados = set()
+        
         while True:
             seleccion = peticion("Número del operador (o «0» para terminar): ")
             if seleccion == '0':
@@ -286,8 +310,12 @@ def añadir_operadores(estructura_logica):
                 print(f"Se añadirá el operador {OPERADORES[num-1].descripcion}.")
             except ValueError:
                 print("Entrada inválida. Por favor, escribe un número entre 1 y 11. Si quieres terminar la selección, escribe «0».")
+        
         operadores_seleccionados.sort(key=lambda op: OPERADORES.index(op))
+        
+        # Envolvemos la LS base en corchetes si es necesario (el formato RRG varía aquí, pero mantenemos tu lógica)
         estructura_logica = f"[{estructura_logica}]"
+        
         operadores_con_valores = []
         for op in operadores_seleccionados:
             if op.requiere_valor:
@@ -297,12 +325,21 @@ def añadir_operadores(estructura_logica):
                 operadores_con_valores.append((op.codigo, valor))
             else:
                 operadores_con_valores.append((op.codigo, None))
+        
+        # --- AQUÍ APLICAMOS EL FORMATO ---
         for codigo, valor in reversed(operadores_con_valores):
+            # Formato para la CATEGORÍA (TNS, ASP...) -> Atenuado
+            cat_fmt = f"{ATENUADO}{codigo}{RESET}"
+            
             if valor is not None:
-                estructura_logica = f"<{codigo} {valor} {estructura_logica}>"
+                # Formato para el VALOR (PAST, PROG...) -> Itálica
+                val_fmt = f"{ITALICA}{valor}{RESET}"
+                estructura_logica = f"<{cat_fmt} {val_fmt} {estructura_logica}>"
             else:
-                estructura_logica = f"<{codigo} {estructura_logica}>"
+                estructura_logica = f"<{cat_fmt} {estructura_logica}>"
+        
         print(f"\nLa estructura lógica con operadores es: {estructura_logica}")
+    
     return estructura_logica
 
 
@@ -782,6 +819,46 @@ def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_ori
                 return f"have' ({x}, {y})", False
     return None, False
 
+def traducir_ls_a_ingles(ls_string):
+    """
+    Traduce constantes al inglés y las pone en NEGRITA para seguir la convención RRG.
+    """
+    if not ls_string:
+        return ls_string
+
+    # Códigos ANSI para formato en terminal
+    NEGRITA = "\033[1m"
+    RESET = "\033[0m"
+
+    translator = GoogleTranslator(source='es', target='en')
+
+    def reemplazar_match(match):
+        constante = match.group(1) 
+        
+        # Variable para guardar la palabra final (sea traducida o no)
+        palabra_final = constante
+
+        # Lógica de traducción
+        if constante.lower() not in RRG_KEYWORDS:
+            texto_limpio = constante.replace(".", " ")
+            if texto_limpio in CACHE_TRADUCCION:
+                palabra_final = CACHE_TRADUCCION[texto_limpio]
+            else:
+                try:
+                    traduccion = translator.translate(texto_limpio)
+                    if traduccion:
+                        palabra_final = traduccion.lower().strip().replace(" ", ".")
+                        CACHE_TRADUCCION[texto_limpio] = palabra_final
+                except Exception:
+                    pass # Si falla, se queda con la original 'constante'
+
+        # Retornamos la palabra (traducida o no) envuelta en códigos de negrita
+        # Ejemplo: do -> \033[1mdo'\033[0m
+        return f"{NEGRITA}{palabra_final}'{RESET}"
+
+    patron = r"\b([a-zA-Zñáéíóúü\._]+)'"
+    ls_traducida = re.sub(patron, reemplazar_match, ls_string)
+    return ls_traducida
 
 def main():
     set_spanish_locale()
@@ -847,8 +924,18 @@ típica, y puede dar resultados inexactos en construcciones que las alteran.
             if not es_verbo_reciproco and x != "Ø":
                 estructura_logica = aplicar_DO(oracion_original, x, estructura_logica, es_dinamico, AKT)
 
-            print(f"\nLa estructura lógica es: {estructura_logica}")
-            añadir_operadores(estructura_logica)
+            # --- TRADUCCIÓN AUTOMÁTICA ---
+            #print("\nGenerando constantes en inglés...", end="\r")
+            try:
+                ls_ingles = traducir_ls_a_ingles(estructura_logica)
+            except Exception as e:
+                # Si algo falla (ej. sin internet), usamos la versión en español
+                ls_ingles = estructura_logica
+            
+            print(f"\nLa estructura lógica es: {ls_ingles}")
+            
+            # Usamos ls_ingles para que los operadores se añadan sobre la versión traducida
+            añadir_operadores(ls_ingles)
 
         except ValueError as ve:
             print(f"\nError: {ve}")

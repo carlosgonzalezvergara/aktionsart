@@ -9,9 +9,15 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Sequence, Union
+import spacy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Intentamos cargar el modelo de spaCy. Si falla, el programa funcionará en modo manual.
+try:
+    nlp = spacy.load("es_core_news_sm")
+except OSError:
+    nlp = None
 
 class Respuesta(Enum):
     SI = ["sí", "si", "s"]
@@ -55,48 +61,58 @@ class DatosClause:
 
 
 ESTAR = {
-    '1s': "estoy",
-    '2s': "estás",
-    '3s': "está",
-    '1p': "estamos",
-    '2p': "están/estáis",
-    '3p': "están"
+    '1s': "estoy", '2s': "estás", '3s': "está",
+    '1p': "estamos", '2p': "están/estáis", '3p': "están"
 }
 
 ESTAR_PRETERITO = {
-    '1s': "estuve",
-    '2s': "estuviste",
-    '3s': "estuvo",
-    '1p': "estuvimos",
-    '2p': "estuvieron/estuvisteis",
-    '3p': "estuvieron"
+    '1s': "estuve", '2s': "estuviste", '3s': "estuvo",
+    '1p': "estuvimos", '2p': "estuvieron/estuvisteis", '3p': "estuvieron"
 }
 
 ESTAR_SUBJUNTIVO = {
-    '1s': "estuviera",
-    '2s': "estuvieras",
-    '3s': "estuviera",
-    '1p': "estuviéramos",
-    '2p': "estuvieran/estuvierais",
-    '3p': "estuvieran"
+    '1s': "estuviera", '2s': "estuvieras", '3s': "estuviera",
+    '1p': "estuviéramos", '2p': "estuvieran/estuvierais", '3p': "estuvieran"
 }
 
 HABER = {
-    '1s': "he",
-    '2s': "has",
-    '3s': "ha",
-    '1p': "hemos",
-    '2p': "han/habeis",
-    '3p': "han"
+    '1s': "he", '2s': "has", '3s': "ha",
+    '1p': "hemos", '2p': "han/habeis", '3p': "han"
 }
 
 DEJAR = {
-    '1s': "dejara",
-    '2s': "dejaras",
-    '3s': "dejara",
-    '1p': "dejáramos",
-    '2p': "dejaran/dejarais",
-    '3p': "dejaran"
+    '1s': "dejara", '2s': "dejaras", '3s': "dejara",
+    '1p': "dejáramos", '2p': "dejaran/dejarais", '3p': "dejaran"
+}
+
+# Diccionario ampliado de irregulares y cambios de raíz (e>i, o>u)
+IRREGULARES = {
+    # Irregulares puros y participios fuertes
+    "abrir": {"pp": "abierto"}, "cubrir": {"pp": "cubierto"},
+    "decir": {"ger": "diciendo", "pp": "dicho"}, "escribir": {"pp": "escrito"},
+    "hacer": {"pp": "hecho"}, "freír": {"pp": "frito"},
+    "imprimir": {"pp": "impreso"}, "morir": {"ger": "muriendo", "pp": "muerto"},
+    "poner": {"pp": "puesto"}, "proveer": {"pp": "provisto"},
+    "romper": {"pp": "roto"}, "satisfacer": {"pp": "satisfecho"},
+    "soltar": {"pp": "suelto"}, "ver": {"pp": "visto"},
+    "volver": {"pp": "vuelto"}, "ir": {"ger": "yendo", "pp": "ido"},
+    "ser": {"ger": "siendo", "pp": "sido"}, "pudrir": {"pp": "podrido"},
+    "leer": {"ger": "leyendo", "pp": "leído"}, "traer": {"ger": "trayendo", "pp": "traído"},
+    "caer": {"ger": "cayendo", "pp": "caído"}, "oír": {"ger": "oyendo", "pp": "oído"},
+    
+    # Cambios vocálicos (e > i) en gerundio
+    "pedir": {"ger": "pidiendo"}, "sentir": {"ger": "sintiendo"},
+    "mentir": {"ger": "mintiendo"}, "seguir": {"ger": "siguiendo"},
+    "conseguir": {"ger": "consiguiendo"}, "perseguir": {"ger": "persiguiendo"},
+    "servir": {"ger": "sirviendo"}, "vestir": {"ger": "vistiendo"},
+    "repetir": {"ger": "repitiendo"}, "elegir": {"ger": "eligiendo"},
+    "corregir": {"ger": "corrigiendo"}, "reír": {"ger": "riendo"},
+    "sonreír": {"ger": "sonriendo"}, "venir": {"ger": "viniendo"},
+    "competir": {"ger": "compitiendo"}, "medir": {"ger": "midiendo"},
+    "despedir": {"ger": "despidiendo"}, "impedir": {"ger": "impidiendo"},
+    
+    # Cambios vocálicos (o > u) en gerundio
+    "dormir": {"ger": "durmiendo"}, "poder": {"ger": "pudiendo"}
 }
 
 
@@ -117,18 +133,15 @@ def limpiar_consola():
 def mensaje_reinicio() -> None:
     print("\nNo es posible identificar el aktionsart de la cláusula con estos parámetros.")
     print("Por favor, revisa con cuidado tus respuestas a las preguntas.")
-    #print("\nEl programa se reiniciará.")
 
 
 def peticion(prompt: str) -> str:
     import sys
     readline.set_startup_hook(lambda: readline.insert_text(""))
     try:
-        # Si el prompt es largo o tiene saltos de línea, imprímelo antes
         if "\n" in prompt or len(prompt) > 60:
-            # end="" para que el cursor quede al final del texto
             print(prompt, end="", flush=True)
-            user = input().strip()   # prompt corto y de una sola línea
+            user = input().strip()
         else:
             user = input(prompt).strip()
         return user.encode('utf-8').decode('utf-8')
@@ -164,20 +177,222 @@ def pedir_respuesta_multiple(pregunta: str, opciones: Sequence[Union[str, Sequen
             logging.error(f"Error al obtener respuesta: {e}")
 
 
+# --- FUNCIONES DE ANÁLISIS AUTOMÁTICO ---
+
+def generar_formas_verbales(infinitivo):
+    """Genera gerundio y participio a partir del infinitivo usando reglas y diccionario de excepciones."""
+    inf = infinitivo.lower().strip()
+    
+    # Buscamos en el diccionario de irregulares
+    ger = IRREGULARES.get(inf, {}).get("ger", "")
+    part = IRREGULARES.get(inf, {}).get("pp", "")
+
+    # Reglas generales si no está en el diccionario
+    if not ger:
+        if inf.endswith("ar"): ger = inf[:-2] + "ando"
+        elif inf.endswith(("er", "ir")): ger = inf[:-2] + "iendo"
+    
+    if not part:
+        if inf.endswith("ar"): part = inf[:-2] + "ado"
+        elif inf.endswith(("er", "ir")): part = inf[:-2] + "ido"
+
+    return ger, part
+
+def analizar_automaticamente(oracion, datos_clausula):
+    """
+    Usa spaCy con reglas morfológicas expandidas para cubrir 
+    todas las personas, INCLUYENDO EL VOSOTROS Y PRETÉRITOS FUERTES (estuvisteis -> estar).
+    Devuelve: (Éxito, Verbo_Visual, Infinitivo_Limpio)
+    """
+    if not nlp: return False, "", ""
+    
+    doc = nlp(oracion)
+    
+    verbo_token = None
+    
+    # 1. Búsqueda prioritaria
+    for token in doc:
+        if token.dep_ == "ROOT" and token.pos_ in ["VERB", "AUX"]:
+            verbo_token = token
+            break
+            
+    # 2. Búsqueda secundaria
+    if not verbo_token:
+        for token in doc:
+            if token.pos_ in ["VERB", "AUX"]:
+                verbo_token = token
+                break
+    
+    # 3. Búsqueda Agresiva
+    if not verbo_token and len(doc) <= 4:
+        for token in doc:
+            if token.dep_ == "ROOT" and token.pos_ not in ["PRON", "DET", "ADP", "CCONJ"]:
+                verbo_token = token
+                break
+
+    if not verbo_token: return False, "", ""
+
+    # --- Lógica de Clíticos ---
+    idx = verbo_token.i
+    cliticos_encontrados = []
+    
+    for i in range(idx - 1, max(idx - 5, -1), -1):
+        token = doc[i]
+        if token.pos_ == "PRON" and token.text.lower() in ["me", "te", "se", "nos", "os", "le", "les", "lo", "los", "la", "las"]:
+            cliticos_encontrados.insert(0, token.text.lower())
+        else:
+            break
+            
+    # --- SANACIÓN DE LEMAS EXPANDIDA ---
+    lema_limpio = verbo_token.lemma_.lower()
+    texto_verbo = verbo_token.text.lower()
+    
+    # DICCIONARIO DE RAÍCES FUERTES (Pretéritos Irregulares)
+    PRETERITOS_FUERTES = {
+        "estuv": "estar", "tuv": "tener", "anduv": "andar",
+        "pud": "poder", "pus": "poner", "sup": "saber",
+        "hic": "hacer", "hiz": "hacer", "quis": "querer",
+        "vin": "venir", "dij": "decir", "traj": "traer"
+    }
+    
+    lemma_fixed = False
+
+    # 1. Revisar raíces irregulares primero
+    for raiz, infinitivo_real in PRETERITOS_FUERTES.items():
+        if texto_verbo.startswith(raiz):
+            lema_limpio = infinitivo_real
+            lemma_fixed = True
+            break
+    
+    # 2. Si no es irregular fuerte y el lema falla, heurística manual
+    if not lemma_fixed and not lema_limpio.endswith(("ar", "er", "ir", "ír")): 
+        
+        # Singular
+        if texto_verbo.endswith("é"):       lema_limpio = texto_verbo[:-1] + "ar"
+        elif texto_verbo.endswith("aste"):  lema_limpio = texto_verbo[:-4] + "ar"
+        elif texto_verbo.endswith("ó"):     lema_limpio = texto_verbo[:-1] + "ar"
+        elif texto_verbo.endswith("í"):     lema_limpio = texto_verbo[:-1] + "er"
+        elif texto_verbo.endswith("iste"):  lema_limpio = texto_verbo[:-4] + "er"
+            
+        # Plural
+        elif texto_verbo.endswith("amos"):  lema_limpio = texto_verbo[:-4] + "ar"
+        elif texto_verbo.endswith("aron"):  lema_limpio = texto_verbo[:-4] + "ar"
+        elif texto_verbo.endswith("imos"):  lema_limpio = texto_verbo[:-4] + "er"
+        elif texto_verbo.endswith("ieron"): lema_limpio = texto_verbo[:-5] + "er"
+            
+        # VOSOTROS
+        elif texto_verbo.endswith("asteis"): lema_limpio = texto_verbo[:-6] + "ar"
+        elif texto_verbo.endswith("isteis"): lema_limpio = texto_verbo[:-6] + "er"
+
+    suffix = "".join(cliticos_encontrados)
+    datos_clausula.infinitivo = lema_limpio + suffix 
+    
+    # Generar formas
+    ger, part = generar_formas_verbales(lema_limpio)
+    
+    if not ger or not part:
+        return False, "", ""
+
+    datos_clausula.gerundio = ger
+    datos_clausula.participio = part
+    
+    # --- DETECCIÓN DE PERSONA EXPANDIDA ---
+    person_detected = None
+    
+    if texto_verbo.endswith(("é", "í")):
+        person_detected = "1s"
+    elif texto_verbo.endswith(("aste", "iste", "as", "es")): 
+        person_detected = "2s"
+    elif texto_verbo.endswith("ó"):
+        person_detected = "3s"
+    elif texto_verbo.endswith(("amos", "emos", "imos")):
+        person_detected = "1p"
+    elif texto_verbo.endswith(("asteis", "isteis", "áis", "éis", "ís")):
+        person_detected = "2p"
+    elif texto_verbo.endswith(("aron", "ieron", "an", "en")):
+        person_detected = "3p"
+        
+    if person_detected:
+        datos_clausula.persona_numero = person_detected
+    else:
+        # Fallback a spaCy
+        morph = verbo_token.morph.to_dict()
+        persona = morph.get("Person", "3")
+        numero = morph.get("Number", "Sing")
+        mapper_pn = {("1", "Sing"): "1s", ("2", "Sing"): "2s", ("3", "Sing"): "3s",
+                     ("1", "Plur"): "1p", ("2", "Plur"): "2p", ("3", "Plur"): "3p"}
+        
+        sujeto_txt = doc[:idx].text.lower()
+        if "yo" in sujeto_txt.split(): datos_clausula.persona_numero = "1s"
+        elif "tú" in sujeto_txt.split() or "vos" in sujeto_txt.split(): datos_clausula.persona_numero = "2s"
+        elif "nosotros" in sujeto_txt.split(): datos_clausula.persona_numero = "1p"
+        elif "vosotros" in sujeto_txt.split(): datos_clausula.persona_numero = "2p"
+        elif "ellos" in sujeto_txt.split() or "ellas" in sujeto_txt.split(): datos_clausula.persona_numero = "3p"
+        else: datos_clausula.persona_numero = mapper_pn.get((persona, numero), "3s")
+
+    # División Posicional
+    datos_clausula.sujeto = doc[:idx].text.strip()
+    datos_clausula.complementos = doc[idx+1:].text.strip()
+
+    # Devolvemos True, el verbo visual, Y EL LEMA LIMPIO
+    return True, verbo_token.text, lema_limpio
+
 def obtener_info_clausula(oracion: str, datos_clausula: DatosClause) -> DatosClause:
-    datos_clausula.infinitivo = peticion(f"\nEscribe el INFINITIVO del verbo en «{oracion}», incluyendo los clíticos que haya (ejs: «derretirse», «decirle»): ")
-    datos_clausula.gerundio = peticion(f"Escribe el GERUNDIO del verbo en «{oracion}», sin clíticos (ej: «derritiendo»): ")
+    
+    exito_auto, verbo_visual, infinitivo_visual = analizar_automaticamente(oracion, datos_clausula)
+    
+    if exito_auto:
+        # Mapa para lenguaje natural
+        nombres_personas = {
+            "1s": "primera persona singular (yo)",
+            "2s": "segunda persona singular (tú)",
+            "3s": "tercera persona singular (él/ella)",
+            "1p": "primera persona plural (nosotros)",
+            "2p": "segunda persona plural (ustedes/vosotros)",
+            "3p": "tercera persona plural (ellos/ellas)"
+        }
+        desc_persona = nombres_personas.get(datos_clausula.persona_numero, "Desconocida")
+
+        print("\n" + "="*50)
+        print(f"ANÁLISIS AUTOMÁTICO:")
+        print(f"• Verbo detectado:  «{verbo_visual.lower()}»") 
+        print(f"• Persona/Número:   {desc_persona}")
+        print("-" * 50)
+        print(f"• Infinitivo:       {infinitivo_visual}") # Mostramos el limpio
+        print(f"• Gerundio:         {datos_clausula.gerundio}")
+        print(f"• Participio:       {datos_clausula.participio}")
+        print("-" * 50)
+        print(f"• Antes del verbo:  «{datos_clausula.sujeto if datos_clausula.sujeto else 'Ø'}»")
+        print(f"• Después del verbo:«{datos_clausula.complementos if datos_clausula.complementos else 'Ø'}»")
+        print("="*50)
+        
+        if respuesta_si_no("\n¿Es correcto este análisis? (s/n): "):
+            datos_clausula.rasgos_obtenidos = True
+            return datos_clausula
+        else:
+            print("\nEntendido. Ingresemos los datos manualmente.")
+    
+    # --- MODO MANUAL ---
+    datos_clausula.infinitivo = peticion(f"\nEscribe el INFINITIVO del verbo en «{oracion}» (ejs: «derretirse», «decirle»): ")
+    datos_clausula.gerundio = peticion(f"Escribe el GERUNDIO del verbo en «{oracion}» (ej: «derritiendo»): ")
     datos_clausula.participio = peticion(f"Escribe el PARTICIPIO (masculino singular) del verbo en «{oracion}» (ej: «derretido»): ")
-    sujeto_input = peticion(f"Escribe todo lo que hay ANTES del verbo en «{oracion}», incluyendo los clíticos (0 si no hay nada): ")
+    
+    sujeto_input = peticion(f"Escribe todo lo que hay ANTES del verbo en «{oracion}» (0 si no hay nada): ")
     datos_clausula.sujeto = "" if sujeto_input == "0" else sujeto_input
+    
     complementos_input = peticion(f"Escribe todo lo que hay DESPUÉS del verbo en «{oracion}» (0 si no hay nada): ")
     datos_clausula.complementos = "" if complementos_input == "0" else complementos_input
+    
     persona_numero_pregunta = "Escribe la persona y número del verbo"
     persona_numero_prompt = "(1s/2s/3s/1p/2p/3p): "
     opciones_persona_numero: List[str] = ['1s', '2s', '3s', '1p', '2p', '3p']
     datos_clausula.persona_numero = pedir_respuesta_multiple(persona_numero_pregunta, opciones_persona_numero, persona_numero_prompt)
+    
     datos_clausula.rasgos_obtenidos = True
     return datos_clausula
+
+# --- FIN FUNCIONES DE ANÁLISIS AUTOMÁTICO ---
+
 
 def construir_perif_gerundio(tiempo: str, datos_clausula: DatosClause) -> str:
     forma_estar = ESTAR_PRETERITO[datos_clausula.persona_numero] if tiempo == 'preterito' else ESTAR[datos_clausula.persona_numero]
