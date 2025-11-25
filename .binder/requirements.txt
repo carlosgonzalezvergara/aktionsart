@@ -1,0 +1,2 @@
+deep-translator
+spacy>=3.0
