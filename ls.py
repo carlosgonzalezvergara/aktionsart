@@ -612,18 +612,18 @@ def manejar_realizacion_activa_diccion(x, y, z, pred):
     if not input_si_no(f"¿Es «{pred}» un verbo de dicción? (s/n): "):
         return None
     
-    #Reemplaza espacios por puntos para los predicados complejos
-    y_clean = y.replace(" ", ".")
+    # SANITIZACIÓN + SOMETHING
+    y_clean = "something" if y in ["Ø", "0"] else y.replace(" ", ".")
     z_clean = z.replace(" ", ".")
     
     if pred in VERBOS_DICCION["preguntar"]:
-        return f"[do' ({x}, [express.question.to.{z_clean}' ({x}, pregunta)]) ∧ PROC being.created' (pregunta) ∧ FIN exist' (pregunta)] PURP [do' ({z}, [express.to.{x}' ({z}, {y})])]"
+        return f"[do' ({x}, [express.question.to.{z_clean}' ({x}, pregunta)]) ∧ PROC being.created' (pregunta) ∧ FIN exist' (pregunta)] PURP [do' ({z}, [express.{y_clean}.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.por.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.de.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
         return f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
 
@@ -635,18 +635,18 @@ def manejar_verbos_transferencia(x, y, z, pred, operador):
     return None
 
 def manejar_verbo_diccion(x, y, z, pred, operador):
-    #Reemplaza espacios por puntos para los predicados complejos
-    y_clean = y.replace(" ", ".")
+    # SANITIZACIÓN + SOMETHING
+    y_clean = "something" if y in ["Ø", "0"] else y.replace(" ", ".")
     z_clean = z.replace(" ", ".")
 
     if pred in VERBOS_DICCION["preguntar"]:
         return f"[{operador + ' ' if operador else ''}do' ({x}, [express.question.to.{z_clean}' ({x})])] PURP [do' ({z}, [express.{y_clean}.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.por.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.de.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
         return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {y})]"
 
@@ -702,12 +702,28 @@ def informacion_mente(AKT, x, y, operador, es_dinamico, oracion_original):
 
 def complemento_regimen(AKT, x, y, operador, es_dinamico, oracion_original):
     if AKT in ["estado", "actividad", "proceso", "logro", "realización", "semelfactivo"] and y == "Ø" and input_si_no(f"¿Alguno de los constituyentes de «{oracion_original}» es un complemento de régimen\n(ej: «de defectos» en «la obra carece de defectos»)? (s/n): "):
-        pred = peticion("Escribe el infinitivo del verbo con la preposición que rige (ej: «carecer de»): ").lower().replace(" ", ".")
+        
+        entrada_verbo = peticion("Escribe el infinitivo del verbo con la preposición que rige (ej: «carecer de»): ").lower().strip()
+        
+        # --- FILTRO DE SEGURIDAD PARA VERBOS RECÍPROCOS ---
+        verbo_aislado = entrada_verbo.split()[0]
+        
+        # Si el verbo está en la lista de dicción recíproca (conversar, discutir, hablar...),
+        # ABORTAMOS esta función para que lo maneje 'predicados_especiales' más adelante.
+        categoria = buscar_verbo(verbo_aislado, VERBOS_DICCION)
+        if categoria == "conversar":
+            return None
+        # --------------------------------------------------
+
+        # Si no es recíproco, seguimos con la lógica normal de complemento de régimen
+        pred = entrada_verbo.replace(" ", ".")
         suplemento = peticion("Escribe la información del complemento de régimen (sin preposición): ")
+        
         if es_dinamico:
             estructura_logica = f"{operador + ' ' if operador else ''}do' ({x}, [{pred}' ({x}, {suplemento})])"
         else:        
             estructura_logica = f"{operador + ' ' if operador else ''}{pred}' ({x}, {suplemento})"
+        
         return estructura_logica
     return None
 
@@ -784,9 +800,9 @@ def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_ori
     if pred in VERBOS_DICCION["conversar"] and input_si_no(f"¿Hay un interlocutor en «{oracion_original}»? (s/n): "):
         z = peticion("Escribe quién es el interlocutor: ")
         
-        #Reemplaza espacios por puntos para los predicados complejos
+        # SANITIZACIÓN + SOMETHING
         x_clean = x.replace(" ", ".")
-        y_clean = y.replace(" ", ".")
+        y_clean = "something" if y in ["Ø", "0"] else y.replace(" ", ".")
         z_clean = z.replace(" ", ".")
         
         parte1 = f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({z}, {y})]"
@@ -920,7 +936,7 @@ def traducir_ls_a_ingles(ls_string):
         # Retornamos la palabra con formato negrita
         return f"{NEGRITA}{palabra_final}'{RESET}"
 
-    patron = r"\b([a-zA-Zñáéíóúü\._]+)'"
+    patron = r"\b([a-zA-Zñáéíóúü\._Ø]+)'"
     ls_traducida = re.sub(patron, reemplazar_match, ls_string)
     return ls_traducida
 

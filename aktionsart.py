@@ -13,6 +13,10 @@ import spacy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Códigos ANSI para formato
+NEGRITA = '\033[1m'
+RESET = '\033[0m'
+
 # Intentamos cargar el modelo de spaCy. Si falla, el programa funcionará en modo manual.
 try:
     nlp = spacy.load("es_core_news_sm")
@@ -353,8 +357,8 @@ def obtener_info_clausula(oracion: str, datos_clausula: DatosClause) -> DatosCla
         }
         desc_persona = nombres_personas.get(datos_clausula.persona_numero, "Desconocida")
 
+        print("\nEste es un análisis de algunos de los rasgos morfológicos y estructurales de esta cláusula:")
         print("\n" + "="*50)
-        print(f"ANÁLISIS AUTOMÁTICO:")
         print(f"• Verbo detectado:  «{verbo_visual.lower()}»") 
         print(f"• Persona/Número:   {desc_persona}")
         print("-" * 50)
@@ -465,6 +469,25 @@ def obtener_evento_basico() -> str:
             return evento
         print("\nPor favor, ingresa una oración válida o «0» para cancelar.")
 
+def verificar_limpieza_adjuntos(oracion: str) -> str:
+    """
+    Pide al usuario que verifique si la cláusula está limpia de adjuntos
+    que puedan interferir con las pruebas.
+    """
+    print(f"\nEsta es la cláusula a la que aplicaremos las pruebas: «{oracion}»")
+    print("Para que estas funcionen correctamente, la cláusula debe estar 'limpia'.")
+    print("\nAsegúrate de que NO tenga:")
+    print("• Expresiones de tiempo (ayer, siempre, nunca, el lunes).")
+    print("• Expresiones de modo (rápidamente, bien, mal, con calma).")
+    print("• Negaciones (no, tampoco).")
+    
+    if respuesta_si_no("\n¿Tu cláusula contiene alguno de estos elementos? (s/n): "):
+        oracion_limpia = peticion(f"\nPor favor, escribe «{oracion}» de nuevo SIN esos elementos (ej: 'Pedro corrió' en vez de 'Pedro nunca corrió ayer'): ")
+        while not oracion_limpia.strip():
+            oracion_limpia = peticion("No has escrito nada. Inténtalo de nuevo: ")
+        return oracion_limpia
+    return oracion
+
 def prueba_estatividad(oracion: str) -> bool:
     print("\nPRUEBA DE ESTATIVIDAD")
     return not respuesta_si_no(
@@ -506,34 +529,38 @@ def obtener_rasgos_akt(oracion: str, datos_clausula: DatosClause) -> Union[Rasgo
         evento_basico = obtener_evento_basico()
         if evento_basico == "0":
             pred_es.causativo = False
-            print("\nEl predicado es [-causativo]")
+            print(f"\n{NEGRITA}El predicado es [-causativo]{RESET}")
         else:
             pred_es.causativo = True
-            print("\nEl predicado es [+causativo]")
+            print(f"\n{NEGRITA}El predicado es [+causativo]{RESET}")
             oracion = evento_basico
     else:
         pred_es.causativo = False
-        print("\nEl predicado es [-causativo]")
+        print(f"\n{NEGRITA}El predicado es [-causativo]{RESET}")
+
+    time.sleep(0.5)
+
+    oracion = verificar_limpieza_adjuntos(oracion) #verifica que la cláusula esté limpia de adjuntos
 
     time.sleep(0.5)
 
     pred_es.estativo = prueba_estatividad(oracion)
-    print(f"\nEl predicado es [{'+estativo' if pred_es.estativo else '-estativo'}]")
+    print(f"\n{NEGRITA}El predicado es [{'+estativo' if pred_es.estativo else '-estativo'}]{RESET}")
     time.sleep(0.5)
 
     if not pred_es.estativo:
         obtener_info_clausula(oracion, datos_clausula)
         
         pred_es.puntual = not prueba_duratividad(datos_clausula)
-        print(f"\nEl predicado es [{'+puntual' if pred_es.puntual else '-puntual'}]")
+        print(f"\n{NEGRITA}El predicado es [{'+puntual' if pred_es.puntual else '-puntual'}]{RESET}")
         time.sleep(0.5)
 
         pred_es.telico = prueba_telicidad(datos_clausula)
-        print(f"\nEl predicado es [{'+télico' if pred_es.telico else '-télico'}]")
+        print(f"\n{NEGRITA}El predicado es [{'+télico' if pred_es.telico else '-télico'}]{RESET}")
         time.sleep(0.5)
 
         pred_es.dinamico = prueba_dinamicidad(datos_clausula)
-        print(f"\nEl predicado es [{'+dinámico' if pred_es.dinamico else '-dinámico'}]")
+        print(f"\n{NEGRITA}El predicado es [{'+dinámico' if pred_es.dinamico else '-dinámico'}]{RESET}")
         time.sleep(0.5)
 
     return pred_es
@@ -541,7 +568,7 @@ def obtener_rasgos_akt(oracion: str, datos_clausula: DatosClause) -> Union[Rasgo
 
 def mostrar_resultado(oracion_original: str, aktionsart: Aktionsart, pred_es: RasgosPred) -> None:
     print("\nRESULTADO")
-    print(f"\nEl aktionsart del predicado de «{oracion_original}» es {aktionsart.value.upper()}.")
+    print(f"\n{NEGRITA}El aktionsart del predicado de «{oracion_original}» es {aktionsart.value.upper()}.{RESET}")
 
     akt_estado = aktionsart in [Aktionsart.ESTADO, Aktionsart.ESTADO_CAUSATIVO]
 

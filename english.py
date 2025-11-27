@@ -18,6 +18,10 @@ import spacy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Códigos ANSI para formato
+BOLD = '\033[1m'
+RESET = '\033[0m'
+
 # --- SPA_CY SETUP ---
 # Try to load the English model. Fallback to manual if not found.
 try:
@@ -274,6 +278,7 @@ def multiple_choice(question: str, options: Sequence[Union[str, Sequence[str]]],
 def generate_english_forms(lemma: str):
     """
     Generates Gerund and Past Participle using dictionary + heuristic rules.
+    Corrects the "double consonant" rule to avoid errors like 'recoverring'.
     """
     lemma = lemma.lower().strip()
     
@@ -288,9 +293,19 @@ def generate_english_forms(lemma: str):
     elif lemma.endswith("e") and not lemma.endswith("ee"):
         ger = lemma[:-1] + "ing" # make -> making
     else:
-        # Simplified consonant doubling check (CVC)
-        # (This is a basic heuristic, covering common cases like 'stop', 'plan')
-        if len(lemma) > 2 and lemma[-1] not in "aeiouwyx" and lemma[-2] in "aeiou" and lemma[-3] not in "aeiou":
+        # CONSONANT DOUBLING RULE (Refined)
+        # Condition 1: Ends in CVC
+        # Condition 2: Last letter is NOT w, x, y
+        # Condition 3: EXCEPTION -> Do NOT double if it ends in 'er', 'en', 'el', 'it' (unstressed)
+        
+        is_cvc = (len(lemma) > 2 
+                  and lemma[-1] not in "aeiouwyx" 
+                  and lemma[-2] in "aeiou" 
+                  and lemma[-3] not in "aeiou")
+        
+        is_unstressed_ending = lemma.endswith(("er", "en", "el", "it")) 
+        
+        if is_cvc and not is_unstressed_ending:
              ger = lemma + lemma[-1] + "ing"
         else:
              ger = lemma + "ing"
@@ -299,8 +314,15 @@ def generate_english_forms(lemma: str):
     if lemma.endswith("e"):
         pp = lemma + "d"
     else:
-        # Same doubling rule
-        if len(lemma) > 2 and lemma[-1] not in "aeiouwyx" and lemma[-2] in "aeiou" and lemma[-3] not in "aeiou":
+        # Same doubling logic
+        is_cvc = (len(lemma) > 2 
+                  and lemma[-1] not in "aeiouwyx" 
+                  and lemma[-2] in "aeiou" 
+                  and lemma[-3] not in "aeiou")
+        
+        is_unstressed_ending = lemma.endswith(("er", "en", "el", "it"))
+
+        if is_cvc and not is_unstressed_ending:
              pp = lemma + lemma[-1] + "ed"
         else:
              pp = lemma + "ed"
@@ -325,7 +347,7 @@ def detect_person_number(doc, verb_token, idx):
     
     # Pronouns
     if text == "i": return "1s"
-    if text == "you": return "2s" # Ambiguous, but 2s covers 'are/were' which is same for 2p
+    if text == "you": return "2s"
     if text == "we": return "1p"
     if text == "they": return "3p"
     if text in ["he", "she", "it"]: return "3s"
@@ -403,8 +425,7 @@ def analyze_automatically(clause, data):
 
 
 def collect_clause_info(clause: str, data: ClauseData) -> ClauseData:
-    print("\nAnalyzing clause...", end="\r")
-    
+        
     success, verb_visual, lemma_visual = analyze_automatically(clause, data)
     
     if success:
@@ -419,8 +440,8 @@ def collect_clause_info(clause: str, data: ClauseData) -> ClauseData:
         }
         desc_pn = pn_map.get(data.person_number, "Unknown")
         
+        print("\nThis is an analysis of some of the morphological and structural features of this clause:")
         print("\n" + "="*50)
-        print(f"AUTOMATIC ANALYSIS:")
         print(f"• Detected Verb:    «{verb_visual}»")
         print(f"• Person/Number:    {desc_pn}")
         print("-" * 50)
@@ -568,6 +589,26 @@ def determine_aktionsart(feats: Features) -> Optional[Aktionsart]:
         return Aktionsart[sub]
 
 
+def verify_adjuncts_cleanup(clause: str) -> str:
+    """
+    Asks the user to verify if the clause is free of adjuncts
+    that might interfere with the tests.
+    """
+    print(f"\nThis is the clause we will test: '{clause}'")
+    print("For the tests to work correctly, the clause must be 'clean'.")
+    print("\nEnsure it does NOT contain:")
+    print("• Time expressions (yesterday, always, never, on Monday).")
+    print("• Manner expressions (quickly, well, badly, calmly).")
+    print("• Negation (not, never).")
+    
+    if yes_no("\nDoes your clause contain any of these elements? (y/n): "):
+        # Updated to include the original clause in the prompt for clarity
+        clean_clause = prompt_user(f"\nPlease type '{clause}' again WITHOUT those elements (e.g., 'Peter ran' instead of 'Peter never ran yesterday'): ")
+        while not clean_clause.strip():
+            clean_clause = prompt_user("You didn't type anything. Try again: ")
+        return clean_clause
+    return clause
+
 # ------------------------- Orchestration -------------------------
 
 def obtain_features(clause: str, data: ClauseData) -> Union[Features, None]:
@@ -579,19 +620,27 @@ def obtain_features(clause: str, data: ClauseData) -> Union[Features, None]:
         basic_event = get_basic_event()
         if basic_event == "0":
             feats.causative = False
-            print("\nPredicate is [-causative]")
+            print(f"\n{BOLD}Predicate is [-causative]{RESET}")
         else:
             feats.causative = True
-            print("\nPredicate is [+causative]")
+            print(f"\n{BOLD}Predicate is [+causative]{RESET}")
             clause = basic_event
     else:
         feats.causative = False
-        print("\nPredicate is [-causative]")
+        print(f"\n{BOLD}Predicate is [-causative]{RESET}")
+
+    time.sleep(0.5)
+
+    # --- NEW CLEAN-UP PHASE ---
+    # We ensure the clause (either original or basic event) is clean
+    # before proceeding to aspectual tests.
+    clause = verify_adjuncts_cleanup(clause)
+    # --------------------------
 
     time.sleep(0.5)
 
     feats.stative = stativity_test(clause)
-    print(f"\nPredicate is [{'+' if feats.stative else '-'}stative]")
+    print(f"\n{BOLD}Predicate is [{'+' if feats.stative else '-'}stative]{RESET}")
     time.sleep(0.5)
 
     if not feats.stative:
@@ -599,15 +648,15 @@ def obtain_features(clause: str, data: ClauseData) -> Union[Features, None]:
 
         # Punctuality: if it is NOT compatible with durational for-phrases in past progressive → punctual = True
         feats.punctual = not punctuality_test(data)
-        print(f"\nPredicate is [{'+' if feats.punctual else '-'}punctual]")
+        print(f"\n{BOLD}Predicate is [{'+' if feats.punctual else '-'}punctual]{RESET}")
         time.sleep(0.5)
 
         feats.telic = telicity_test(data)
-        print(f"\nPredicate is [{'+' if feats.telic else '-'}telic]")
+        print(f"\n{BOLD}Predicate is [{'+' if feats.telic else '-'}telic]{RESET}")
         time.sleep(0.5)
 
         feats.dynamic = dynamicity_test(data)
-        print(f"\nPredicate is [{'+' if feats.dynamic else '-'}dynamic]")
+        print(f"\n{BOLD}Predicate is [{'+' if feats.dynamic else '-'}dynamic]{RESET}")
         time.sleep(0.5)
 
     return feats
@@ -615,7 +664,7 @@ def obtain_features(clause: str, data: ClauseData) -> Union[Features, None]:
 
 def show_result(original_clause: str, akt: Aktionsart, feats: Features) -> None:
     print("\nRESULT")
-    print(f"\nThe aktionsart of the predicate in '{original_clause}' is {akt.value.upper()}.")
+    print(f"\n{BOLD}The aktionsart of the predicate in '{original_clause}' is {akt.value.upper()}.{RESET}")
 
     is_state = akt in [Aktionsart.STATE, Aktionsart.CAUSATIVE_STATE]
 
@@ -688,7 +737,14 @@ def main() -> None:
             show_result(original, akt, feats)
 
             if not yes_no("\nDo you want to identify the aktionsart of another predicate? (y/n): "):
+                print("\nReturning to main menu...")
                 time.sleep(1)
+                try:
+                    subprocess.run([sys.executable, "main.py"], check=True)
+                except FileNotFoundError:
+                    print("Error: main.py not found in the current directory.")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error running main.py: {e}")
                 return
             else:
                 time.sleep(0.5)

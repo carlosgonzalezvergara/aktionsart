@@ -35,7 +35,7 @@ def main():
         if opcion in PROGRAMAS:
             archivo_py = PROGRAMAS[opcion][1]
             try:
-                print(f"\n>>> Ejecutando la opción elegida...\n")
+                print(f"\nEjecutando la opción elegida...\n")
                 # Ejecutar usando el mismo Python del sistema (-u para salida inmediata)
                 subprocess.run([sys.executable, "-u", archivo_py], check=True)
             except Exception as e:
