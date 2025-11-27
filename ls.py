@@ -18,7 +18,7 @@ RRG_KEYWORDS = {
     "asp", "not", "purp", "being.created", "being.consumed", "consumed",
     "have.as.part", "have.as.kin", "have.enough.with", "express", "hit",
     "move.away.from.reference.point", "move.up.from.reference.point", 
-    "move.down.from.reference.point", "not", "y", "o"
+    "move.down.from.reference.point", "not"
 }
 
 # Caché para no consultar a Google repetidamente por la misma palabra
@@ -313,7 +313,6 @@ def añadir_operadores(estructura_logica):
         
         operadores_seleccionados.sort(key=lambda op: OPERADORES.index(op))
         
-        # Envolvemos la LS base en corchetes si es necesario (el formato RRG varía aquí, pero mantenemos tu lógica)
         estructura_logica = f"[{estructura_logica}]"
         
         operadores_con_valores = []
@@ -326,7 +325,6 @@ def añadir_operadores(estructura_logica):
             else:
                 operadores_con_valores.append((op.codigo, None))
         
-        # --- AQUÍ APLICAMOS EL FORMATO ---
         for codigo, valor in reversed(operadores_con_valores):
             # Formato para la CATEGORÍA (TNS, ASP...) -> Atenuado
             cat_fmt = f"{ATENUADO}{codigo}{RESET}"
@@ -613,16 +611,21 @@ def verbos_OI(AKT, x, y, z, operador): #Verbos triargumentales con complemento i
 def manejar_realizacion_activa_diccion(x, y, z, pred):
     if not input_si_no(f"¿Es «{pred}» un verbo de dicción? (s/n): "):
         return None
+    
+    #Reemplaza espacios por puntos para los predicados complejos
+    y_clean = y.replace(" ", ".")
+    z_clean = z.replace(" ", ".")
+    
     if pred in VERBOS_DICCION["preguntar"]:
-        return f"[do' ({x}, [express.question.to.{z}' ({x}, pregunta)]) ∧ PROC being.created' (pregunta) ∧ FIN exist' (pregunta)] PURP [do' ({z}, [express.{y}.to.{x}' ({z}, {y})])]"
+        return f"[do' ({x}, [express.question.to.{z_clean}' ({x}, pregunta)]) ∧ PROC being.created' (pregunta) ∧ FIN exist' (pregunta)] PURP [do' ({z}, [express.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.por.{y}.to.{z}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.de.{y}.to.{z}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
-        return f"[do' ({x}, [express.{y}.to.{z}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
+        return f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
 
 def manejar_verbos_transferencia(x, y, z, pred, operador):
     if pred in VERBOS_TRANSFERENCIA["sacar"]:
@@ -632,16 +635,20 @@ def manejar_verbos_transferencia(x, y, z, pred, operador):
     return None
 
 def manejar_verbo_diccion(x, y, z, pred, operador):
+    #Reemplaza espacios por puntos para los predicados complejos
+    y_clean = y.replace(" ", ".")
+    z_clean = z.replace(" ", ".")
+
     if pred in VERBOS_DICCION["preguntar"]:
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.question.to.{z}' ({x})])] PURP [do' ({z}, [express.{y}.to.{x}' ({z}, {y})])]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.question.to.{z_clean}' ({x})])] PURP [do' ({z}, [express.{y_clean}.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.por.{y}.to.{z}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.de.{y}.to.{z}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{y}.to.{z}' ({x}, {y})])] PURP [know' ({z}, {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {y})]"
 
 def manejar_otros_verbos(AKT, x, y, z, pred, operador):
     if AKT == "realización activa causativa": #enseñar de a poco algo específico a alguien
@@ -659,24 +666,25 @@ def manejar_otros_verbos(AKT, x, y, z, pred, operador):
 
 def casos_especiales_estado(AKT, x, y, oracion_original): #Maneja propiedades inherentes y sensaciones
     if AKT == "estado":
-        #sin objeto directo
+        # sin objeto directo
         if y == "Ø": 
-            #tipo "está helado"
             if x == "Ø": 
                 if input_si_no(f"¿«{oracion_original[0].upper() + oracion_original[1:]}» describe una sensación o fenómeno climático usando «estar» como verbo no auxiliar (ej: «está nublado»)? (s/n): "):
                     pred = peticion("Escribe la sensación o fenómeno climático (ej: «frío», «nublado»): ").lower().replace(" ", ".")
                     return f"{pred}' (weather)"
-            #predicados de individuo
             elif input_si_no(f"¿«{oracion_original[0].upper() + oracion_original[1:]}» expresa un atributo esencial del sujeto usando «ser» (ej: «Ana es alta»)? (s/n): "):
                 pred = peticion("Escribe el atributo: ").lower().replace(" ", ".")
                 return f"be' ({x}, [{pred}'])"
             if input_si_no("¿El estado es un tipo de sensación o sentimiento (ej: «frío» o «amor»)? (s/n): "):
                 pred = peticion("Escribe esa sensación o sentimiento (ej: «frío» o «enamorado»): ").lower().replace(" ", ".")
                 return f"feel' ({x}, [{pred}'])"
-        #con objeto directo
+        # con objeto directo
         else:
             if input_si_no(f"¿«{y[0].upper() + y[1:]}» expresa una sensación o sentimiento? (s/n): "):
-                return f"feel' ({x}, [{y}'])" #la información del objeto directo es el predicado
+                # Sanitización del OD para convertirlo en predicado
+                y_clean = y.replace(" ", ".")
+                return f"feel' ({x}, [{y_clean}'])" 
+    
     elif AKT == "estado causativo" and input_si_no("¿El estado es un tipo de sensación o sentimiento (ej: «frío» o «amor»)? (s/n): "):
             pred = peticion("Escribe esa sensación o sentimiento (ej: «frío» o «enamorado»): ").lower().replace(" ", ".")
             return f"[do' ({x}, Ø)] CAUSE [feel' ({y}, [{pred}'])]"
@@ -763,42 +771,54 @@ def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, orac
 
 
 def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_original):
-    #casos como "algo huele mal"
+    # casos como "algo huele mal"
     if pred in VERBOS_PERCEPCION_IMPERSONAL and not es_dinamico and y == "Ø":
         verbo_infinitivo = VERBOS_PERCEPCION_IMPERSONAL[pred]
         cualidad = peticion(f"Escribe la cualidad percibida en «{oracion_original}» (ej: «mal», «raro»): ").lower().replace(" ", ".")
         return f"{operador + ' ' if operador else ''}{verbo_infinitivo}.{cualidad}' ({x})", False
-    #verbos meteorológicos propios
+    
+    # verbos meteorológicos propios
     if x == "Ø" and pred in VERBOS_METEOROLOGICOS:
         return f"{operador + ' ' if operador else ''}do' ([{pred}'])", False
-    #verbos de dicción con interlocutor
+    
     if pred in VERBOS_DICCION["conversar"] and input_si_no(f"¿Hay un interlocutor en «{oracion_original}»? (s/n): "):
         z = peticion("Escribe quién es el interlocutor: ")
-        parte1 = f"[do' ({x}, [express.{y}.to.{z}' ({x}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({z}, {y})]"
-        parte2 = f"[do' ({z}, [express.{y}.to.{x}' ({z}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({x}, {y})]"
+        
+        #Reemplaza espacios por puntos para los predicados complejos
+        x_clean = x.replace(" ", ".")
+        y_clean = y.replace(" ", ".")
+        z_clean = z.replace(" ", ".")
+        
+        parte1 = f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({z}, {y})]"
+        parte2 = f"[do' ({z}, [express.{y_clean}.to.{x_clean}' ({z}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({x}, {y})]"
+        
         if input_si_no(f"¿Tanto «{x}» como «{z}» actuaron de manera intencional en la conversación? (s/n): "):
             return f"DO ({parte1}) ∧ DO ({parte2})", True
         else:
             return f"{parte1} ∧ {parte2}", True
-    #verbos de olvido
+            
+    # verbos de olvido
     if pred in ["olvidar", "desaprender"]:
         if es_dinamico:
             return f"{operador + ' ' if operador else ''}do' ({x}, [NOT know' ({x}, {y})])", False
         else:
             return f"{operador + ' ' if operador else ''}NOT know' ({x}, {y})", False
-    #verbos como "perder"
+    
+    # verbos como "perder"
     if pred in VERBOS_POSESION["perder"]:
         if es_dinamico:
             return f"{operador + ' ' if operador else ''}do' ({x}, [NOT have' ({x}, {y})])", False
         else:
             return f"{operador + ' ' if operador else ''}NOT have' ({x}, {y})", False
-    #verbos como "obtener"
+    
+    # verbos como "obtener"
     if pred in VERBOS_POSESION["obtener"] and y != "Ø":
         if es_dinamico:
             return f"{operador + ' ' if operador else ''}do' ({x}, [INGR have' ({x}, {y})])", False
         else:
             return f"{operador + ' ' if operador else ''}have' ({x}, {y})", False
-    #estados especiales
+    
+    # estados especiales
     if AKT == "estado":
         #verbos de desconocimiento
         if pred in ["ignorar", "desconocer"]:
@@ -821,7 +841,9 @@ def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_ori
 
 def traducir_ls_a_ingles(ls_string):
     """
-    Traduce constantes al inglés y las pone en NEGRITA para seguir la convención RRG.
+    Traduce constantes al inglés y las pone en NEGRITA.
+    Incluye un diccionario de correcciones ampliado para evitar ambigüedades 
+    donde el traductor confunde participios con sustantivos.
     """
     if not ls_string:
         return ls_string
@@ -829,17 +851,60 @@ def traducir_ls_a_ingles(ls_string):
     # Códigos ANSI para formato en terminal
     NEGRITA = "\033[1m"
     RESET = "\033[0m"
+    
+    # --- DICCIONARIO DE CORRECCIONES MANUALES ---
+    CORRECCIONES = {
+        # Pintar
+        "pintada": "painted", "pintado": "painted",
+        # Comer
+        "comida": "eaten", "comido": "eaten",
+        # Beber
+        "bebida": "drunk", "bebido": "drunk",
+        # Parar
+        "parada": "stopped", "parado": "stopped",
+        # Herir
+        "herida": "wounded", "herido": "wounded",
+        # Llamar
+        "llamada": "called", "llamado": "called",
+        # Ver
+        "vista": "seen", "visto": "seen",
+        # Hacer
+        "hecha": "made", "hecho": "made",
+        # Volver
+        "vuelta": "returned", "vuelto": "returned",
+        # Poner
+        "puesta": "put", "puesto": "put",
+        # Escribir
+        "escrito": "written", "escrita": "written",
+        # Abrir
+        "abierto": "open", "abierta": "open", 
+        # Romper
+        "rota": "broken", "roto": "broken",
+        # Morir
+        "muerto": "dead", "muerta": "dead", 
+        # Decir
+        "dicho": "said", "dicha": "said"
+    }
 
     translator = GoogleTranslator(source='es', target='en')
 
     def reemplazar_match(match):
         constante = match.group(1) 
         
-        # Variable para guardar la palabra final (sea traducida o no)
+        # Variable para guardar la palabra final
         palabra_final = constante
+        constante_lower = constante.lower()
 
-        # Lógica de traducción
-        if constante.lower() not in RRG_KEYWORDS:
+        # 1. Si está en la lista de palabras reservadas RRG, no tocar
+        if constante_lower in RRG_KEYWORDS:
+            pass # Se queda igual
+            
+        # 2. Si está en nuestro DICCIONARIO DE CORRECCIONES, usar esa versión
+        elif constante_lower in CORRECCIONES:
+            palabra_final = CORRECCIONES[constante_lower]
+            
+        # 3. Si no, intentar traducción normal
+        else:
             texto_limpio = constante.replace(".", " ")
             if texto_limpio in CACHE_TRADUCCION:
                 palabra_final = CACHE_TRADUCCION[texto_limpio]
@@ -850,10 +915,9 @@ def traducir_ls_a_ingles(ls_string):
                         palabra_final = traduccion.lower().strip().replace(" ", ".")
                         CACHE_TRADUCCION[texto_limpio] = palabra_final
                 except Exception:
-                    pass # Si falla, se queda con la original 'constante'
+                    pass 
 
-        # Retornamos la palabra (traducida o no) envuelta en códigos de negrita
-        # Ejemplo: do -> \033[1mdo'\033[0m
+        # Retornamos la palabra con formato negrita
         return f"{NEGRITA}{palabra_final}'{RESET}"
 
     patron = r"\b([a-zA-Zñáéíóúü\._]+)'"
