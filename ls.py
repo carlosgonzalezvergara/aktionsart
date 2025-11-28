@@ -739,10 +739,12 @@ def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, orac
     if input_si_no(f"Considera la cláusula «{oracion_original}». ¿Alguno de sus constituyentes argumentales (no periféricos)\nindica la ubicación, el destino o el punto de partida de «{x}»{' o «' + y + '»' if y != 'Ø' else ''}? (s/n): "):
         locus = peticion("Escribe la información del lugar, sin preposición: ")
         pred = peticion("Escribe el infinitivo del verbo: ").lower().replace(" ", ".")
-        #verbo "haber" con locativo
+        
+        # verbo "haber" con locativo
         if pred == "haber":
             return f"be-loc' ({y}, {locus})", locus
-        #verbo "tener" con locativo
+            
+        # verbo "tener" con locativo
         elif pred in VERBOS_POSESION["tener"]:
             if input_si_no(f"¿«{y[0].upper() + y[1:]}» está situado en alguna parte de «{x}»? (s/n): "):
                 return f"have.as.part' ({x}, {y}) ∧ be-loc' ({y}, {locus})", locus
@@ -750,8 +752,9 @@ def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, orac
                 return f"have.as.kin' ({x}, {y}) ∧ be-loc' ({y}, {locus})", locus
             else:
                 return f"{pred}' ({x}, {y}) ∧ be-loc' ({y}, {locus})", locus
-        #verbos tipo "irse"
-        elif AKT in ("logro", "realización", "proceso", "semelfactivo") and (buscar_verbo(pred, VERBOS_MOVIMIENTO) or input_si_no(f"¿Como resultado del evento, «{x}» dejó de estar o llegó a estar en «{locus}»? (s/n): ")):
+        
+        # verbos tipo "irse" (MOVIMIENTO)
+        elif AKT in ("actividad", "logro", "realización", "proceso", "semelfactivo") and (buscar_verbo(pred, VERBOS_MOVIMIENTO) or input_si_no(f"¿Como resultado del evento, «{x}» dejó de estar o llegó a estar en «{locus}»? (s/n): ")):
             if es_dinamico:
                 lugar_tipo = peticion(f"¿«{locus[0].upper() + locus[1:]}» es (1) la procedencia o (2) el destino? Escribe 1 o 2: ")
                 if lugar_tipo == "1":
@@ -764,7 +767,8 @@ def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, orac
                     return f"{operador + ' ' if operador else ''}NOT be-loc' ({x}, {locus})", locus
                 if lugar_tipo == "2":
                     return f"{operador + ' ' if operador else ''}be-loc' ({x}, {locus})", locus
-        #verbos tipo "echar"
+        
+        # verbos tipo "echar"
         elif AKT in ("logro causativo", "realización causativa", "proceso causativo", "semelfactivo causativo") and input_si_no(f"¿Como resultado del evento, «{y}» dejó de estar o llegó a estar en «{locus}»? (s/n): "):
             if es_dinamico:
                 lugar_tipo = peticion(f"¿«{locus[0].upper() + locus[1:]}» es (1) la procedencia o (2) el destino? Escribe 1 o 2: ")
@@ -778,12 +782,15 @@ def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, orac
                     return f"[do' ({x}, Ø)] CAUSE [{operador + ' ' if operador else ''}NOT be-loc' ({locus}, {y})]", locus
                 if lugar_tipo == "2":
                     return f"[do' ({x}, Ø)] CAUSE [{operador + ' ' if operador else ''}be-loc' ({locus}, {y})]", locus
-        #verbos tipo "sacar"
-        elif pred in VERBOS_TRANSFERENCIA["sacar"]:
+        
+        # verbos tipo "sacar" (TRANSFERENCIA)
+        elif pred in VERBOS_TRANSFERENCIA["sacar"] and not ((pred == "arrancar" or pred == "retirar") and "causativ" not in AKT):
             return f"[do' ({x}, Ø)] CAUSE [{operador + ' ' if operador else ''}NOT be-loc' ({locus}, {y})]", locus
-        #"olvidar" algo en un lugar
+        
+        # "olvidar" algo en un lugar
         elif pred == "olvidar":
             return f"{operador + ' ' if operador else ''}NOT know' ({x}, {y}) ∧ be-loc' ({y}, {locus})", locus
+        
         # Otros casos locativos
         else:
             if AKT != "realización activa":
