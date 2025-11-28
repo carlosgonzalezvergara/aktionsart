@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Aktionsart detector (EN version)
---------------------------------
-Automated version using spaCy for morphosyntactic analysis.
 """
 import locale
 import logging
@@ -23,7 +21,6 @@ BOLD = '\033[1m'
 RESET = '\033[0m'
 
 # --- SPA_CY SETUP ---
-# Try to load the English model. Fallback to manual if not found.
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
@@ -67,7 +64,6 @@ class Features:
 class ClauseData:
     gerund: str = ""
     participle: str = ""
-    # We keep 'infinitive' in data for internal logic references if needed
     infinitive: str = "" 
     subject: str = ""
     postverbal: str = ""
@@ -278,7 +274,6 @@ def multiple_choice(question: str, options: Sequence[Union[str, Sequence[str]]],
 def generate_english_forms(lemma: str):
     """
     Generates Gerund and Past Participle using dictionary + heuristic rules.
-    Corrects the "double consonant" rule to avoid errors like 'recoverring'.
     """
     lemma = lemma.lower().strip()
     
@@ -293,10 +288,7 @@ def generate_english_forms(lemma: str):
     elif lemma.endswith("e") and not lemma.endswith("ee"):
         ger = lemma[:-1] + "ing" # make -> making
     else:
-        # CONSONANT DOUBLING RULE (Refined)
-        # Condition 1: Ends in CVC
-        # Condition 2: Last letter is NOT w, x, y
-        # Condition 3: EXCEPTION -> Do NOT double if it ends in 'er', 'en', 'el', 'it' (unstressed)
+        # CONSONANT DOUBLING RULE
         
         is_cvc = (len(lemma) > 2 
                   and lemma[-1] not in "aeiouwyx" 
@@ -400,9 +392,6 @@ def analyze_automatically(clause, data):
     # Emergency patch for 'ran' -> 'ran' lemma issue in small models
     if lemma == verb_token.text.lower():
         # Common mistake with strong verbs if model is uncertain
-        # We check if the word is actually in our irregular dict as a Past form?
-        # Simplified approach: check dictionary keys for matches if lemma seems wrong?
-        # For now, we trust spaCy or the irregular dict.
         pass
 
     ger, pp = generate_english_forms(lemma)
@@ -435,14 +424,14 @@ def collect_clause_info(clause: str, data: ClauseData) -> ClauseData:
             "2s": "2nd person (You)",
             "3s": "3rd person singular (He/She/It)",
             "1p": "1st person plural (We)",
-            "2p": "2nd person plural (You)", # Same as 2s in English aux
+            "2p": "2nd person plural (You)", 
             "3p": "3rd person plural (They)"
         }
         desc_pn = pn_map.get(data.person_number, "Unknown")
         
         print("\nThis is an analysis of some of the morphological and structural features of this clause:")
         print("\n" + "="*50)
-        print(f"• Detected Verb:    «{verb_visual}»")
+        print(f"• Verb:             «{verb_visual}»")
         print(f"• Person/Number:    {desc_pn}")
         print("-" * 50)
         print(f"• Infinitive:       {lemma_visual}")
@@ -527,8 +516,8 @@ def stativity_test(clause: str) -> bool:
     print("\nSTATIVITY TEST")
     return not yes_no(
         f"\nConsider the following dialogue:"
-        f"\n—What happened a moment ago / yesterday / last month?"
-        f"\n—{clause[0].upper() + clause[1:]}."
+        f"\n— What happened a moment ago / yesterday / last month?"
+        f"\n— {clause[0].upper() + clause[1:]}."
         f"\n\nDo you think '{clause}' is a good answer to that question (for at least one time option)? (y/n): ")
 
 
@@ -594,15 +583,14 @@ def verify_adjuncts_cleanup(clause: str) -> str:
     Asks the user to verify if the clause is free of adjuncts
     that might interfere with the tests.
     """
-    print(f"\nThis is the clause we will test: '{clause}'")
+    print(f"\nThis is the clause we will test: \n{BOLD}'{clause}{RESET}'")
     print("For the tests to work correctly, the clause must be 'clean'.")
     print("\nEnsure it does NOT contain:")
-    print("• Time expressions (yesterday, always, never, on Monday).")
-    print("• Manner expressions (quickly, well, badly, calmly).")
-    print("• Negation (not, never).")
+    print("• Time expressions (e.g., 'yesterday', 'always', 'never', 'on Monday')")
+    print("• Manner expressions (e.g., 'quickly', 'well', 'with calm')")
+    print("• Negation (e.g., 'not', 'never')")
     
     if yes_no("\nDoes your clause contain any of these elements? (y/n): "):
-        # Updated to include the original clause in the prompt for clarity
         clean_clause = prompt_user(f"\nPlease type '{clause}' again WITHOUT those elements (e.g., 'Peter ran' instead of 'Peter never ran yesterday'): ")
         while not clean_clause.strip():
             clean_clause = prompt_user("You didn't type anything. Try again: ")
@@ -630,22 +618,17 @@ def obtain_features(clause: str, data: ClauseData) -> Union[Features, None]:
         print(f"\n{BOLD}Predicate is [-causative]{RESET}")
 
     time.sleep(0.5)
-
-    # --- NEW CLEAN-UP PHASE ---
-    # We ensure the clause (either original or basic event) is clean
-    # before proceeding to aspectual tests.
     clause = verify_adjuncts_cleanup(clause)
-    # --------------------------
 
     time.sleep(0.5)
+    collect_clause_info(clause, data)
 
+    time.sleep(0.5)
     feats.stative = stativity_test(clause)
     print(f"\n{BOLD}Predicate is [{'+' if feats.stative else '-'}stative]{RESET}")
     time.sleep(0.5)
 
     if not feats.stative:
-        collect_clause_info(clause, data)
-
         # Punctuality: if it is NOT compatible with durational for-phrases in past progressive → punctual = True
         feats.punctual = not punctuality_test(data)
         print(f"\n{BOLD}Predicate is [{'+' if feats.punctual else '-'}punctual]{RESET}")

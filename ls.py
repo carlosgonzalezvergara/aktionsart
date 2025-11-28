@@ -601,7 +601,9 @@ def verbos_OI(AKT, x, y, z, operador): #Verbos triargumentales con complemento i
     pred = peticion("Escribe el infinitivo del verbo: ").lower().replace(" ", ".")
     if AKT == "realización activa":
         return manejar_realizacion_activa_diccion(x, y, z, pred)
-    es_transferencia = manejar_verbos_transferencia(x, y, z, pred, operador)
+    
+    es_transferencia = manejar_verbos_transferencia(x, y, z, pred, operador, AKT)
+    
     if es_transferencia:
         return es_transferencia
     if input_si_no(f"¿Es «{pred}» un verbo de dicción? (s/n): "):
@@ -627,9 +629,14 @@ def manejar_realizacion_activa_diccion(x, y, z, pred):
     else:
         return f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
 
-def manejar_verbos_transferencia(x, y, z, pred, operador):
+def manejar_verbos_transferencia(x, y, z, pred, operador, AKT): # Añadimos AKT en los argumentos
     if pred in VERBOS_TRANSFERENCIA["sacar"]:
+        
+        if pred == "arrancar" and "causativ" not in AKT:
+            return None
+
         return f"[do' ({x}, Ø)] CAUSE [{operador + ' ' if operador else ''}NOT have' ({z}, {y})] PURP [have' ({x}, {y})]"
+    
     elif (pred in VERBOS_TRANSFERENCIA["dar_poner"] or input_si_no(f"¿El significado típico de «{pred}» es la transferencia de un objeto físico? (s/n): ")) or (pred == "pegar" and y!= "Ø"):
         return f"[do' ({x}, Ø)] CAUSE [{operador + ' ' if operador else ''}have' ({z}, {y})]"
     return None
@@ -936,7 +943,7 @@ def traducir_ls_a_ingles(ls_string):
         # Retornamos la palabra con formato negrita
         return f"{NEGRITA}{palabra_final}'{RESET}"
 
-    patron = r"\b([a-zA-Zñáéíóúü\._Ø]+)'"
+    patron = r"\b([a-zA-Zñáéíóúü\._Ø0-9\-]+)'"
     ls_traducida = re.sub(patron, reemplazar_match, ls_string)
     return ls_traducida
 
@@ -971,7 +978,6 @@ típica, y puede dar resultados inexactos en construcciones que las alteran.
         estructura_logica = None
 
         try:
-            # Manejo de casos especiales        
             if estructura_logica is None:
                 estructura_logica = verbos_doler_gustar(AKT, x, y, z, operador, es_dinamico, oracion_original)
             if estructura_logica is None:
@@ -987,9 +993,9 @@ típica, y puede dar resultados inexactos en construcciones que las alteran.
             if estructura_logica is None:
                 estructura_logica = informacion_mente(AKT, x, y, operador, es_dinamico, oracion_original)
             if estructura_logica is None:
-                estructura_logica = complemento_regimen(AKT, x, y, operador, es_dinamico, oracion_original)
-            if estructura_logica is None:
                 estructura_logica, locus = casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, oracion_original)
+            if estructura_logica is None:
+                estructura_logica = complemento_regimen(AKT, x, y, operador, es_dinamico, oracion_original)
             # Obtener el valor de pred si no es un caso especial
             if estructura_logica is None and not pred:
                 pred = obtener_predicado(AKT, y, es_dinamico)
@@ -1005,7 +1011,6 @@ típica, y puede dar resultados inexactos en construcciones que las alteran.
                 estructura_logica = aplicar_DO(oracion_original, x, estructura_logica, es_dinamico, AKT)
 
             # --- TRADUCCIÓN AUTOMÁTICA ---
-            #print("\nGenerando constantes en inglés...", end="\r")
             try:
                 ls_ingles = traducir_ls_a_ingles(estructura_logica)
             except Exception as e:

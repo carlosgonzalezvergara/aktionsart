@@ -358,21 +358,22 @@ def obtener_info_clausula(oracion: str, datos_clausula: DatosClause) -> DatosCla
     if exito_auto:
         # Mapa para lenguaje natural
         nombres_personas = {
-            "1s": "primera persona singular (yo)",
-            "2s": "segunda persona singular (tú)",
-            "3s": "tercera persona singular (él/ella)",
-            "1p": "primera persona plural (nosotros)",
-            "2p": "segunda persona plural (ustedes/vosotros)",
-            "3p": "tercera persona plural (ellos/ellas)"
+            "1s": "primera persona singular",
+            "2s": "segunda persona singular",
+            "3s": "tercera persona singular",
+            "1p": "primera persona plural",
+            "2p": "segunda persona plural",
+            "3p": "tercera persona plural"
         }
         desc_persona = nombres_personas.get(datos_clausula.persona_numero, "Desconocida")
-
+        
+        time.sleep(0.5)
         print("\nEste es un análisis de algunos de los rasgos morfológicos y estructurales de esta cláusula:")
         print("\n" + "="*50)
-        print(f"• Verbo detectado:  «{verbo_visual.lower()}»") 
+        print(f"• Verbo:            «{verbo_visual.lower()}»") 
         print(f"• Persona/Número:   {desc_persona}")
         print("-" * 50)
-        print(f"• Infinitivo:       {infinitivo_visual}") # Mostramos el limpio
+        print(f"• Infinitivo:       {infinitivo_visual}")
         print(f"• Gerundio:         {datos_clausula.gerundio}")
         print(f"• Participio:       {datos_clausula.participio}")
         print("-" * 50)
@@ -385,6 +386,7 @@ def obtener_info_clausula(oracion: str, datos_clausula: DatosClause) -> DatosCla
             return datos_clausula
         else:
             print("\nEntendido. Ingresemos los datos manualmente.")
+            time.sleep(0.5)
     
     # --- MODO MANUAL ---
     datos_clausula.infinitivo = peticion(f"\nEscribe el INFINITIVO del verbo en «{oracion}», incluyendo los clíticos que haya (ejs: «derretirse», «decirle»): ")
@@ -459,6 +461,7 @@ def determinar_aktionsart(pred_es: RasgosPred) -> Optional[Aktionsart]:
 
 #Pruebas de Aktionsart en funciones específicas
 def prueba_causatividad(oracion: str) -> bool:
+    time.sleep(0.5)
     print("\nPRUEBA DE CAUSATIVIDAD")
     print(f"\nIntenta reformular «{oracion}» siguiendo estos modelos: ")
     print("• El gato rompió el jarrón → El gato HIZO/CAUSÓ QUE el jarrón se rompiera")
@@ -484,12 +487,12 @@ def verificar_limpieza_adjuntos(oracion: str) -> str:
     Pide al usuario que verifique si la cláusula está limpia de adjuntos
     que puedan interferir con las pruebas.
     """
-    print(f"\nEsta es la cláusula a la que aplicaremos las pruebas: «{oracion}»")
+    print(f"\nEsta es la cláusula a la que aplicaremos las pruebas: \n{NEGRITA}«{oracion}»{RESET}")
     print("Para que estas funcionen correctamente, la cláusula debe estar 'limpia'.")
     print("\nAsegúrate de que NO tenga:")
-    print("• Expresiones de tiempo (ayer, siempre, nunca, el lunes).")
-    print("• Expresiones de modo (rápidamente, bien, mal, con calma).")
-    print("• Negaciones (no, tampoco).")
+    print("• Expresiones de tiempo (ej: «ayer», «siempre», «el lunes»)")
+    print("• Expresiones de modo (ej: «rápidamente», «bien», «mal», «con calma»)")
+    print("• Negaciones (ej: «no», «tampoco»)")
     
     if respuesta_si_no("\n¿Tu cláusula contiene alguno de estos elementos? (s/n): "):
         oracion_limpia = peticion(f"\nPor favor, escribe «{oracion}» de nuevo SIN esos elementos (ej: 'Pedro corrió' en vez de 'Pedro nunca corrió ayer'): ")
@@ -502,9 +505,9 @@ def prueba_estatividad(oracion: str) -> bool:
     print("\nPRUEBA DE ESTATIVIDAD")
     return not respuesta_si_no(
         f"\nObserva el siguiente diálogo:"
-        f"\n—¿Qué pasó hace un rato / ayer / el mes pasado?"
-        f"\n—{oracion[0].upper() + oracion[1:]}."
-        f"\n\n¿Te parece que «{oracion}» es una buena respuesta a la pregunta? (con al menos una de las opciones) (s/n): ")
+        f"\n— ¿Qué pasó hace un rato / ayer / el mes pasado?"
+        f"\n— {oracion[0].upper() + oracion[1:]}."
+        f"\n\n¿Te parece que «{oracion}» es una buena respuesta a la pregunta? \n(con al menos una de las opciones) (s/n): ")
 
 def prueba_dinamicidad(datos_clausula: DatosClause) -> bool:
     perifrasis_gerundio = construir_perif_gerundio('presente', datos_clausula)
@@ -518,7 +521,7 @@ def prueba_duratividad(datos_clausula: DatosClause) -> bool:
     print("\nPRUEBA DE PUNTUALIDAD")
     return respuesta_si_no(
         f"\nObserva esta expresión: «{perifrasis_gerundio[0].upper() + perifrasis_gerundio[1:]} durante una hora / un mes»."
-        f"\n¿Es esta una expresión posible (con al menos una de las opciones)? (sin que el evento tome una interpretación iterativa o de inminencia) (s/n): ")
+        f"\n¿Es esta una expresión posible (con al menos una de las opciones)? \n(sin que el evento tome una interpretación iterativa o de inminencia) (s/n): ")
 
 def prueba_telicidad(datos_clausula: DatosClause) -> bool:
     perifrasis_gerundio = construir_perif_gerundio_subj(datos_clausula)
@@ -534,6 +537,7 @@ def obtener_rasgos_akt(oracion: str, datos_clausula: DatosClause) -> Union[Rasgo
     pred_es = RasgosPred()
     datos_clausula.rasgos_obtenidos = False
 
+    # 1. Prueba de Causatividad
     respuesta_causatividad = prueba_causatividad(oracion)
     if respuesta_causatividad:
         evento_basico = obtener_evento_basico()
@@ -550,16 +554,22 @@ def obtener_rasgos_akt(oracion: str, datos_clausula: DatosClause) -> Union[Rasgo
 
     time.sleep(0.5)
 
-    oracion = verificar_limpieza_adjuntos(oracion) #verifica que la cláusula esté limpia de adjuntos
+    # 2. Limpieza de la cláusula
+    oracion = verificar_limpieza_adjuntos(oracion) 
 
     time.sleep(0.5)
 
+    # 3. Análisis de información de la cláusula
+    obtener_info_clausula(oracion, datos_clausula)
+
+    time.sleep(0.5)
+
+    # 4. Bloque de pruebas semánticas
     pred_es.estativo = prueba_estatividad(oracion)
     print(f"\n{NEGRITA}El predicado es [{'+estativo' if pred_es.estativo else '-estativo'}]{RESET}")
     time.sleep(0.5)
 
     if not pred_es.estativo:
-        obtener_info_clausula(oracion, datos_clausula)
         
         pred_es.puntual = not prueba_duratividad(datos_clausula)
         print(f"\n{NEGRITA}El predicado es [{'+puntual' if pred_es.puntual else '-puntual'}]{RESET}")
@@ -577,6 +587,7 @@ def obtener_rasgos_akt(oracion: str, datos_clausula: DatosClause) -> Union[Rasgo
 
 
 def mostrar_resultado(oracion_original: str, aktionsart: Aktionsart, pred_es: RasgosPred) -> None:
+    time.sleep(0.5)
     print("\nRESULTADO")
     print(f"\n{NEGRITA}El aktionsart del predicado de «{oracion_original}» es {aktionsart.value.upper()}.{RESET}")
 
@@ -598,6 +609,7 @@ def mostrar_resultado(oracion_original: str, aktionsart: Aktionsart, pred_es: Ra
 
     print("\nEste predicado se clasifica así porque tiene los siguientes rasgos:")
     print(' '.join(rasgos_str))
+    time.sleep(0.5)
 
     if respuesta_si_no("\n¿Quieres obtener la estructura lógica de esta cláusula? (s/n): "):
         print("\nEjecutando la opción elegida...")
