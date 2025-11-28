@@ -187,18 +187,28 @@ def generar_formas_verbales(infinitivo):
     """Genera gerundio y participio a partir del infinitivo usando reglas y diccionario de excepciones."""
     inf = infinitivo.lower().strip()
     
-    # Buscamos en el diccionario de irregulares
+    # 1. Buscamos en el diccionario de irregulares
     ger = IRREGULARES.get(inf, {}).get("ger", "")
     part = IRREGULARES.get(inf, {}).get("pp", "")
 
-    # Reglas generales si no está en el diccionario
+    # 2. Generar GERUNDIO si no existe
     if not ger:
-        if inf.endswith("ar"): ger = inf[:-2] + "ando"
-        elif inf.endswith(("er", "ir")): ger = inf[:-2] + "iendo"
-    
+        # Caso especial: Verbos en -uir (huir -> huyendo), excepto -guir/-quir
+        if inf.endswith("uir") and not inf.endswith(("guir", "quir", "güir")):
+            ger = inf[:-2] + "yendo"
+        
+        # Reglas estándar (ahora sí funcionan como alternativas si no es -uir)
+        elif inf.endswith("ar"): 
+            ger = inf[:-2] + "ando"
+        elif inf.endswith(("er", "ir")): 
+            ger = inf[:-2] + "iendo"
+
+    # 3. Generar PARTICIPIO si no existe
     if not part:
-        if inf.endswith("ar"): part = inf[:-2] + "ado"
-        elif inf.endswith(("er", "ir")): part = inf[:-2] + "ido"
+        if inf.endswith("ar"): 
+            part = inf[:-2] + "ado"
+        elif inf.endswith(("er", "ir")): 
+            part = inf[:-2] + "ido"
 
     return ger, part
 
@@ -377,11 +387,11 @@ def obtener_info_clausula(oracion: str, datos_clausula: DatosClause) -> DatosCla
             print("\nEntendido. Ingresemos los datos manualmente.")
     
     # --- MODO MANUAL ---
-    datos_clausula.infinitivo = peticion(f"\nEscribe el INFINITIVO del verbo en «{oracion}» (ejs: «derretirse», «decirle»): ")
-    datos_clausula.gerundio = peticion(f"Escribe el GERUNDIO del verbo en «{oracion}» (ej: «derritiendo»): ")
+    datos_clausula.infinitivo = peticion(f"\nEscribe el INFINITIVO del verbo en «{oracion}», incluyendo los clíticos que haya (ejs: «derretirse», «decirle»): ")
+    datos_clausula.gerundio = peticion(f"Escribe el GERUNDIO del verbo en «{oracion}», sin clíticos (ej: «derritiendo»): ")
     datos_clausula.participio = peticion(f"Escribe el PARTICIPIO (masculino singular) del verbo en «{oracion}» (ej: «derretido»): ")
     
-    sujeto_input = peticion(f"Escribe todo lo que hay ANTES del verbo en «{oracion}» (0 si no hay nada): ")
+    sujeto_input = peticion(f"Escribe todo lo que hay ANTES del verbo en «{oracion}», incluyendo los clíticos (0 si no hay nada): ")
     datos_clausula.sujeto = "" if sujeto_input == "0" else sujeto_input
     
     complementos_input = peticion(f"Escribe todo lo que hay DESPUÉS del verbo en «{oracion}» (0 si no hay nada): ")
