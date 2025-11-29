@@ -218,11 +218,11 @@ VERBOS_PERCEPCION = {
 }
 
 VERBOS_PERCEPCION_IMPERSONAL = {
-    "saber": "saber", "sabido": "saber", "sabida": "saber", "sabidos": "saber", "sabidas": "saber",
-    "oler": "oler", "olido": "oler", "olida": "oler", "olidos": "oler", "olidas": "oler",
-    "sonar": "sonar", "sonado": "sonar", "sonada": "sonar", "sonados": "sonar", "sonadas": "sonar",
-    "ver": "verse", "verse": "verse", "visto": "verse", "vista": "verse", "vistos": "verse", "vistas": "verse",
-    "sentir": "sentirse", "sentirse": "sentirse", "sentido": "sentirse", "sentida": "sentirse", "sentidos": "sentirse", "sentidas": "sentirse"
+    "saber": "taste", "sabido": "taste", "sabida": "taste", "sabidos": "taste", "sabidas": "taste",
+    "oler": "smell", "olido": "smell", "olida": "smell", "olidos": "smell", "olidas": "smell",
+    "sonar": "hear", "sonado": "hear", "sonada": "hear", "sonados": "hear", "sonadas": "hear",
+    "ver": "see", "verse": "see", "visto": "see", "vista": "see", "vistos": "see", "vistas": "see",
+    "sentir": "feel", "sentirse": "feel", "sentido": "feel", "sentida": "feel", "sentidos": "feel", "sentidas": "feel"
 }
 
 
@@ -271,11 +271,10 @@ def buscar_verbo(verbo, diccionario):
 
 
 def añadir_operadores(estructura_logica):
-    # --- Definición de Estilos ANSI ---
+    # Definición de Estilos ANSI 
     ITALICA = "\033[3m"
-    ATENUADO = "\033[2m"  # Simula el subíndice haciéndolo menos brillante
+    ATENUADO = "\033[2m"
     RESET = "\033[0m"
-    # ----------------------------------
 
     if input_si_no("\n¿Quieres añadir operadores a la estructura lógica? (s/n): "):
         print("\nOperadores clausulares:")
@@ -408,7 +407,7 @@ def obtener_predicado(AKT, y, es_dinamico):
     elif (AKT in ["actividad", "realización activa"]) or (AKT in ["logro", "semelfactivo"] and es_dinamico) or (y != "Ø" and "causativ" not in AKT):
         pred = peticion("Escribe el infinitivo del verbo: ")
     else:
-        pred = peticion("Escribe el verbo en su forma de participio (o el adjetivo relacionado) o, si se trata de un verbo (seudo)copulativo, escribe el atributo: ")
+        pred = peticion("Escribe el verbo en su forma de participio (o el adjetivo relacionado) \no, si se trata de un verbo (seudo)copulativo, escribe el atributo: ")
     return pred.lower().replace(" ", ".")
 
 
@@ -622,12 +621,12 @@ def manejar_realizacion_activa_diccion(x, y, z, pred):
         return f"[do' ({x}, [express.question.to.{z_clean}' ({x}, pregunta)]) ∧ PROC being.created' (pregunta) ∧ FIN exist' (pregunta)] PURP [do' ({z}, [express.{y_clean}.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.por.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.because.of.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[do' ({x}, [express.{arg_incorporado}.de.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[do' ({x}, [express.{arg_incorporado}.of.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({arg_incorporado}) ∧ FIN exist' ({arg_incorporado})] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
-        return f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
+        return f"[do' ({x}, [express.something.to.{z_clean}' ({x}, {y})]) ∧ PROC being.created' ({y}) ∧ FIN exist' ({y})] PURP [know' ({z}, {y})]"
 
 def manejar_verbos_transferencia(x, y, z, pred, operador, AKT): # Añadimos AKT en los argumentos
     if pred in VERBOS_TRANSFERENCIA["sacar"]:
@@ -650,12 +649,12 @@ def manejar_verbo_diccion(x, y, z, pred, operador):
         return f"[{operador + ' ' if operador else ''}do' ({x}, [express.question.to.{z_clean}' ({x})])] PURP [do' ({z}, [express.{y_clean}.to.{x}' ({z}, {y})])]"
     elif pred in VERBOS_DICCION["agradecer"]:
         arg_incorporado = VERBOS_DICCION["agradecer"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.por.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.because.of.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} por {y})]"
     elif pred in VERBOS_DICCION["bendecir"]:
         arg_incorporado = VERBOS_DICCION["bendecir"][pred]
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.de.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{arg_incorporado}.of.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {arg_incorporado} de {y})]"
     else:
-        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {y})]"
+        return f"[{operador + ' ' if operador else ''}do' ({x}, [express.something.to.{z_clean}' ({x}, {y})])] PURP [know' ({z}, {y})]"
 
 def manejar_otros_verbos(AKT, x, y, z, pred, operador):
     if AKT == "realización activa causativa": #enseñar de a poco algo específico a alguien
@@ -682,7 +681,7 @@ def casos_especiales_estado(AKT, x, y, oracion_original): #Maneja propiedades in
             elif input_si_no(f"¿«{oracion_original[0].upper() + oracion_original[1:]}» expresa un atributo esencial del sujeto usando «ser» (ej: «Ana es alta»)? (s/n): "):
                 pred = peticion("Escribe el atributo: ").lower().replace(" ", ".")
                 return f"be' ({x}, [{pred}'])"
-            if input_si_no("¿El estado es un tipo de sensación o sentimiento (ej: «frío» o «amor»)? (s/n): "):
+            if input_si_no("¿El estado es un tipo de sensación o sentimiento (ej: «frío» o «amor»)? \n(Si es un verbo de percepción sensorial, responde que no) (s/n): "):
                 pred = peticion("Escribe esa sensación o sentimiento (ej: «frío» o «enamorado»): ").lower().replace(" ", ".")
                 return f"feel' ({x}, [{pred}'])"
         # con objeto directo
@@ -710,7 +709,7 @@ def informacion_mente(AKT, x, y, operador, es_dinamico, oracion_original):
 def complemento_regimen(AKT, x, y, operador, es_dinamico, oracion_original):
     if AKT in ["estado", "actividad", "proceso", "logro", "realización", "semelfactivo"] and y == "Ø" and input_si_no(f"¿Alguno de los constituyentes de «{oracion_original}» es un complemento de régimen\n(ej: «de defectos» en «la obra carece de defectos»)? (s/n): "):
         
-        entrada_verbo = peticion("Escribe el infinitivo del verbo con la preposición que rige (ej: «carecer de»): ").lower().strip()
+        entrada_verbo = peticion("Escribe el infinitivo del verbo: ").lower().strip()
         
         # --- FILTRO DE SEGURIDAD PARA VERBOS RECÍPROCOS ---
         verbo_aislado = entrada_verbo.split()[0]
@@ -722,21 +721,20 @@ def complemento_regimen(AKT, x, y, operador, es_dinamico, oracion_original):
             return None
         # --------------------------------------------------
 
-        # Si no es recíproco, seguimos con la lógica normal de complemento de régimen
         pred = entrada_verbo.replace(" ", ".")
         suplemento = peticion("Escribe la información del complemento de régimen (sin preposición): ")
         
         if es_dinamico:
-            estructura_logica = f"{operador + ' ' if operador else ''}do' ({x}, [{pred}' ({x}, {suplemento})])"
+            estructura_logica = f"{operador + ' ' if operador else ''}do' ({x}, [{pred}' ({x}, {suplemento})]) [MR1]"
         else:        
-            estructura_logica = f"{operador + ' ' if operador else ''}{pred}' ({x}, {suplemento})"
+            estructura_logica = f"{operador + ' ' if operador else ''}{pred}' ({x}, {suplemento}) [MR1]"
         
         return estructura_logica
     return None
 
 def casos_locativos(estructura_logica, AKT, x, y, z, operador, es_dinamico, oracion_original):
     locus = "Ø"
-    if input_si_no(f"Considera la cláusula «{oracion_original}». ¿Alguno de sus constituyentes argumentales (no periféricos)\nindica la ubicación, el destino o el punto de partida de «{x}»{' o «' + y + '»' if y != 'Ø' else ''}? (s/n): "):
+    if input_si_no(f"Considera la cláusula «{oracion_original}». \n¿Alguno de sus constituyentes argumentales (no periféricos)\nindica la ubicación, el destino o el punto de partida de «{x}»{' o «' + y + '»' if y != 'Ø' else ''}? (s/n): "):
         locus = peticion("Escribe la información del lugar, sin preposición: ")
         pred = peticion("Escribe el infinitivo del verbo: ").lower().replace(" ", ".")
         
@@ -804,7 +802,7 @@ def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_ori
     # casos como "algo huele mal"
     if pred in VERBOS_PERCEPCION_IMPERSONAL and not es_dinamico and y == "Ø":
         verbo_infinitivo = VERBOS_PERCEPCION_IMPERSONAL[pred]
-        cualidad = peticion(f"Escribe la cualidad percibida en «{oracion_original}» (ej: «mal», «raro»): ").lower().replace(" ", ".")
+        cualidad = peticion(f"Escribe la cualidad percibida en «{oracion_original}» (ej: «mal», «raro», «a chocolate»): ").lower().replace(" ", ".")
         return f"{operador + ' ' if operador else ''}{verbo_infinitivo}.{cualidad}' ({x})", False
     
     # verbos meteorológicos propios
@@ -814,13 +812,13 @@ def predicados_especiales(AKT, x, y, z, pred, operador, es_dinamico, oracion_ori
     if pred in VERBOS_DICCION["conversar"] and input_si_no(f"¿Hay un interlocutor en «{oracion_original}»? (s/n): "):
         z = peticion("Escribe quién es el interlocutor: ")
         
-        # SANITIZACIÓN + SOMETHING
+        # SANITIZACIÓN
         x_clean = x.replace(" ", ".")
-        y_clean = "something" if y in ["Ø", "0"] else y.replace(" ", ".")
+        y_clean = y.replace(" ", ".")
         z_clean = z.replace(" ", ".")
         
-        parte1 = f"[do' ({x}, [express.{y_clean}.to.{z_clean}' ({x}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({z}, {y})]"
-        parte2 = f"[do' ({z}, [express.{y_clean}.to.{x_clean}' ({z}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({x}, {y})]"
+        parte1 = f"[do' ({x}, [express.something.to.{z_clean}' ({x}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({z}, {y})]"
+        parte2 = f"[do' ({z}, [express.something.to.{x_clean}' ({z}, {y})])] PURP [{operador + ' ' if operador else ''}know' ({x}, {y})]"
         
         if input_si_no(f"¿Tanto «{x}» como «{z}» actuaron de manera intencional en la conversación? (s/n): "):
             return f"DO ({parte1}) ∧ DO ({parte2})", True
@@ -884,35 +882,20 @@ def traducir_ls_a_ingles(ls_string):
     
     # --- DICCIONARIO DE CORRECCIONES MANUALES ---
     CORRECCIONES = {
-        # Pintar
         "pintada": "painted", "pintado": "painted",
-        # Comer
         "comida": "eaten", "comido": "eaten",
-        # Beber
         "bebida": "drunk", "bebido": "drunk",
-        # Parar
         "parada": "stopped", "parado": "stopped",
-        # Herir
         "herida": "wounded", "herido": "wounded",
-        # Llamar
         "llamada": "called", "llamado": "called",
-        # Ver
         "vista": "seen", "visto": "seen",
-        # Hacer
         "hecha": "made", "hecho": "made",
-        # Volver
         "vuelta": "returned", "vuelto": "returned",
-        # Poner
         "puesta": "put", "puesto": "put",
-        # Escribir
         "escrito": "written", "escrita": "written",
-        # Abrir
         "abierto": "open", "abierta": "open", 
-        # Romper
         "rota": "broken", "roto": "broken",
-        # Morir
         "muerto": "dead", "muerta": "dead", 
-        # Decir
         "dicho": "said", "dicha": "said"
     }
 
@@ -927,7 +910,7 @@ def traducir_ls_a_ingles(ls_string):
 
         # 1. Si está en la lista de palabras reservadas RRG, no tocar
         if constante_lower in RRG_KEYWORDS:
-            pass # Se queda igual
+            pass
             
         # 2. Si está en nuestro DICCIONARIO DE CORRECCIONES, usar esa versión
         elif constante_lower in CORRECCIONES:
@@ -947,7 +930,6 @@ def traducir_ls_a_ingles(ls_string):
                 except Exception:
                     pass 
 
-        # Retornamos la palabra con formato negrita
         return f"{NEGRITA}{palabra_final}'{RESET}"
 
     patron = r"\b([a-zA-Zñáéíóúü\._Ø0-9\-]+)'"
@@ -1016,6 +998,10 @@ típica, y puede dar resultados inexactos en construcciones que las alteran.
             # Adición de la capa de intencionalidad DO
             if not es_verbo_reciproco and x != "Ø":
                 estructura_logica = aplicar_DO(oracion_original, x, estructura_logica, es_dinamico, AKT)
+            # Verificación de construcción anticausativa (se + verbo con contraparte causativa)
+            if AKT in ["realización", "logro", "proceso", "semelfactivo"] and y == "Ø":
+                if input_si_no(f"¿El verbo de la cláusula está construido con el clítico «se» \ny tiene una contraparte causativa (ej: «romperse» / «romper»)? (s/n): "):
+                    estructura_logica = f"[do' (Ø, Ø)] CAUSE [{estructura_logica}]"    
 
             # --- TRADUCCIÓN AUTOMÁTICA ---
             try:
